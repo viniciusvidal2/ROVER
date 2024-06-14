@@ -1,0 +1,60 @@
+# Use the official ROS Noetic base image
+FROM ros:noetic
+
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=America/Sao_Paulo
+# Set the timezone
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+# Install necessary packages and dependencies
+RUN apt-get update && apt-get install -y \
+    tzdata \
+    && rm -rf /var/lib/apt/lists/*
+
+# Source ros noetic setup.bash
+RUN /bin/bash -c "source /opt/ros/noetic/setup.bash"
+RUN echo "source /opt/ros/noetic/setup.bash" >> /root/.bashrc
+
+# Home folder and ROS package path
+RUN mkdir -p /home/rover/src
+WORKDIR /home/rover
+
+# Environment variables
+ENV ROS_DISTRO=noetic
+ENV ROS_ROOT=/opt/ros/$ROS_DISTRO
+ENV ROS_PACKAGE_PATH=/home/rover/src
+ENV ROS_MASTER_URI=http://localhost:11311
+ENV ROS_HOSTNAME=localhost
+ENV ROS_PYTHON_VERSION=3
+ENV PYTHONPATH=$ROS_ROOT/lib/python$ROS_PYTHON_VERSION/dist-packages
+ENV DISPLAY=:0
+
+# Installing mavros
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ros-noetic-mavros \
+    ros-noetic-mavros-extras \
+    && rm -rf /var/lib/apt/lists/*
+
+# Installing catkin tools
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3-catkin-tools \
+    && rm -rf /var/lib/apt/lists/*
+
+# Dependencies for camera transmission
+RUN apt-get update && apt-get install -y \
+    python3-opencv \
+    libgtk2.0-dev \
+    libgtk-3-dev \
+    x11-xserver-utils \
+    libgstreamer1.0-0 \
+    gstreamer1.0-tools \
+    gstreamer1.0-plugins-base \
+    gstreamer1.0-plugins-good \
+    gstreamer1.0-plugins-bad \
+    gstreamer1.0-plugins-ugly \
+    gstreamer1.0-libav \
+    libgstreamer-plugins-base1.0-dev
+
+# Default command to run
+CMD ["bash"]
