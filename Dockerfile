@@ -9,7 +9,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # Install necessary packages and dependencies
 RUN apt-get update && apt-get install -y \
-    tzdata \
+    tzdata curl lsb-release gnupg2 build-essential git nano \
     && rm -rf /var/lib/apt/lists/*
 
 # Source ros noetic setup.bash
@@ -30,15 +30,30 @@ ENV ROS_PYTHON_VERSION=3
 ENV PYTHONPATH=$ROS_ROOT/lib/python$ROS_PYTHON_VERSION/dist-packages
 ENV DISPLAY=:0
 
+# Installing catkin tools 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3-catkin-tools python3-pip \
+    && pip install future \
+    && pip install psutil \
+    && pip install dronekit \
+    && rm -rf /var/lib/apt/lists/*
+RUN catkin config --extend /opt/ros/noetic \
+    && catkin init \
+    && wstool init src \
+    && rosinstall_generator --rosdistro noetic mavlink | tee /tmp/mavros.rosinstall \
+    && rosinstall_generator --upstream mavros | tee -a /tmp/mavros.rosinstall \
+    && wstool merge -t src /tmp/mavros.rosinstall \
+    && wstool update -t src -j4 \
+    && rosdep install --from-paths src --ignore-src -y \
+    && chmod +x /home/rover/src/mavros/mavros/scripts/install_geographiclib_datasets.sh \
+    && ./src/mavros/mavros/scripts/install_geographiclib_datasets.sh \
+    && catkin build || true \
+    && catkin build
+
 # Installing mavros
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-noetic-mavros \
     ros-noetic-mavros-extras \
-    && rm -rf /var/lib/apt/lists/*
-
-# Installing catkin tools
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3-catkin-tools \
     && rm -rf /var/lib/apt/lists/*
 
 # Dependencies for camera transmission
@@ -55,6 +70,17 @@ RUN apt-get update && apt-get install -y \
     gstreamer1.0-plugins-ugly \
     gstreamer1.0-libav \
     libgstreamer-plugins-base1.0-dev
+
+# Copy and compile Livox SDK 
+COPY Livox-SDK2 /home/rover/src/Livox-SDK2
+RUN mkdir -p /home/rover/src/Livox-SDK2/build
+WORKDIR /home/rover/src/Livox-SDK2/build
+RUN cmake .. && make install
+
+# Copy the packages to inside the docker and compile the ROS ones
+WORKDIR /home/rover/
+COPY livox_ros_driver2 /home/rover/src/livox_ros_driver2
+RUN catkin build
 
 # Default command to run
 CMD ["bash"]
