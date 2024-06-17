@@ -50,10 +50,17 @@ RUN catkin config --extend /opt/ros/noetic \
     && catkin build || true \
     && catkin build
 
-# Installing mavros
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ros-noetic-mavros \
-    ros-noetic-mavros-extras \
+# Installing mavros and other dependencies
+RUN apt-get update \
+    && apt-get install -y ros-noetic-mavros \
+    && apt-get install -y ros-noetic-mavros-extras \
+    && apt-get install -y ros-noetic-tf2-geometry-msgs \
+    && apt-get install -y ros-noetic-pcl-ros \
+    && apt-get install -y ros-noetic-cv-bridge \
+    && apt-get install -y ros-noetic-roslint \
+    && apt-get install -y ros-noetic-tf2-eigen \
+    && apt-get install -y ros-noetic-tf2-ros \
+    && apt-get install -y ros-noetic-tf \
     && rm -rf /var/lib/apt/lists/*
 
 # Dependencies for camera transmission
@@ -82,5 +89,7 @@ WORKDIR /home/rover/
 COPY livox_ros_driver2 /home/rover/src/livox_ros_driver2
 RUN catkin build
 
+COPY ./start_docker.sh /home/rover/
+
 # Default command to run
-CMD ["bash"]
+CMD [ "bash", "-c", "/home/mig_integration0/start_docker.sh && exec bash" ]
