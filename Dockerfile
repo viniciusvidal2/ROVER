@@ -87,6 +87,8 @@ RUN cmake .. && make install
 # Copy the packages to inside the docker and compile the ROS ones
 WORKDIR /home/rover/
 COPY livox_ros_driver2 /home/rover/src/livox_ros_driver2
+COPY mig_obstacle_avoidance /home/rover/mig_obstacle_avoidance
+COPY livox_filter_mig /home/rover/livox_filter_mig
 RUN catkin build
 
 COPY ./start_docker.sh /home/rover/
