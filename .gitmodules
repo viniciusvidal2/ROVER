@@ -1,3 +1,7 @@
 [submodule "Livox-SDK2"]
 	path = Livox-SDK2
 	url = https://github.com/Livox-SDK/Livox-SDK2.git
+[submodule "mig_obstacle_avoidance"]
+	path = mig_obstacle_avoidance
+	url = https://github.com/ttrindader/mig_obstacle_avoidance.git
+	branch = main
