@@ -92,6 +92,7 @@ COPY livox_filter_mig /home/rover/livox_filter_mig
 RUN catkin build
 
 COPY ./start_docker.sh /home/rover/
+COPY ./rover_bringup.launch /home/rover/
 
 # Default command to run
 CMD [ "bash", "-c", "/home/mig_integration0/start_docker.sh && exec bash" ]
