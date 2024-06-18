@@ -88,6 +88,7 @@ RUN cmake .. && make install
 WORKDIR /home/rover/
 COPY livox_ros_driver2 /home/rover/src/livox_ros_driver2
 COPY mig_obstacle_avoidance /home/rover/mig_obstacle_avoidance
+COPY camera_transmitter /home/rover/camera_transmitter
 COPY livox_filter_mig /home/rover/livox_filter_mig
 RUN catkin build
 
