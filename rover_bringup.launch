@@ -47,6 +47,8 @@
 
     <!-- Choosing which obstacle avoidance algorithm to run based on value -->
     <node pkg="mig_obstacle_avoidance" type="obstAvoid0.py" name="obstAvoid0" if="$(eval arg('oa_approach') == 0)"/>
-    <node pkg="mig_obstacle_avoidance" type="obstAvoid1p.py" name="obstAvoid1p" if="$(eval arg('oa_approach') == 1)"/>
+    <node pkg="mig_obstacle_avoidance" type="obstAvoid1p.py" name="obstAvoid1p" if="$(eval arg('oa_approach') == 1)">
+        <remap from="/scan" to="/livox/scan"/> <!-- We are only using livox data in this algorithm for the rover -->
+    </node>
 
 </launch>
