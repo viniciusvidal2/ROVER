@@ -84,13 +84,21 @@ RUN mkdir -p /home/rover/src/Livox-SDK2/build
 WORKDIR /home/rover/src/Livox-SDK2/build
 RUN cmake .. && make install
 
+# Copy the Dynamixel SDK and install it in the system
+COPY DynamixelSDK /home/rover/src/DynamixelSDK
+WORKDIR /home/rover/src/DynamixelSDK/python
+RUN python3 setup.py install
+
 # Copy the packages to inside the docker and compile the ROS ones
 WORKDIR /home/rover/
 COPY livox_ros_driver2 /home/rover/src/livox_ros_driver2
 COPY mig_obstacle_avoidance /home/rover/mig_obstacle_avoidance
 COPY camera_transmitter /home/rover/camera_transmitter
 COPY livox_filter_mig /home/rover/livox_filter_mig
+COPY dynamixel_controller /home/rover/dynamixel_controller
 RUN catkin build
+
+RUN chmod +x /home/rover/src/dynamixel_controller/scripts/*.py
 
 COPY ./start_docker.sh /home/rover/
 COPY ./rover_bringup.launch /home/rover/

@@ -39,11 +39,14 @@
     <rosparam command="load" file="$(find livox_filter_mig)/config/params.yaml"/>
     <node name="filter_raw_cloud_node" pkg="livox_filter_mig" type="filter_raw_cloud_node" output="screen"/>
 
+    <!-- USB camera for herelink transmission -->
+    <include file="$(find camera_transmitter)/launch/camera_transmitter.launch"/>
+
+    <!-- Dynamixel controllers -->
+    <include file="$(find dynamixel_controller)/launch/dynamixel_controller.launch"/>
+
     <!-- Choosing which obstacle avoidance algorithm to run based on value -->
     <node pkg="mig_obstacle_avoidance" type="obstAvoid0.py" name="obstAvoid0" if="$(eval arg('oa_approach') == 0)"/>
     <node pkg="mig_obstacle_avoidance" type="obstAvoid1p.py" name="obstAvoid1p" if="$(eval arg('oa_approach') == 1)"/>
-
-    <!-- USB camera for herelink transmission -->
-    <include file="$(find camera_transmitter)/launch/camera_transmitter.launch"/>
 
 </launch>
