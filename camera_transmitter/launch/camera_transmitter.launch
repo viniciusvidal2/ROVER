@@ -1,0 +1,21 @@
+<launch>
+
+  <arg name="width" default="320"/>
+  <arg name="height" default="240"/>
+  <arg name="fps" default="10"/>
+
+  <!-- The node to control the camera transmission -->
+  <node pkg="camera_transmitter" type="camera_transmitter_node.py" name="camera_transmitter_node" output="screen">
+    <param name="width" value="$(arg width)"/>
+    <param name="height" value="$(arg height)"/>
+    <param name="fps" value="$(arg fps)"/>
+  </node>
+  
+  <!-- Launch rqt_image_view to display the camera image -->
+  <!-- <node pkg="rqt_image_view" type="rqt_image_view" name="image_viewer" args=" /frontal_camera" output="screen">
+    <param name="autosize" value="true"/>
+    <param name="image_transport" value="compressed"/>
+    <param name="window_name" value="Robot Camera"/>
+  </node> -->
+
+</launch>

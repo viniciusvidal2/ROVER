@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<package>
+  <name>camera_transmitter</name>
+  <version>0.0.0</version>
+  <description>The camera transmitter package</description>
+  <maintainer email="your_email@example.com">your_name</maintainer>
+
+  <license>Apache 2.0</license>
+  
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>rospy</build_depend>
+  <build_depend>cv_bridge</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+  
+  <run_depend>rospy</run_depend>
+  <run_depend>cv_bridge</run_depend>
+  <run_depend>sensor_msgs</run_depend>
+</package>
