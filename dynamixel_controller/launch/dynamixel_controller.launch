@@ -1,0 +1,29 @@
+<launch>
+
+  <!-- Node arguments -->
+  <arg name="addr_mx_torque_enable" default="24"/>
+  <arg name="addr_mx_moving_speed" default="32"/>
+  <arg name="moving_speed" default="24"/>
+  <arg name="dxl_id1" default="1"/>
+  <arg name="dxl_id2" default="2"/>
+  <arg name="baudrate" default="57600"/>
+  <arg name="motor_1_channel" default="0"/>
+  <arg name="motor_2_channel" default="2"/>
+  <arg name="pwm_trim" default="1500"/>
+  <arg name="device_name" default="/dev/ttyUSB0"/>
+
+  <!-- The node to control the dynamixel control -->
+  <node pkg="dynamixel_controller" type="dynamixel_controller_node.py" name="dynamixel_controller_node" output="screen">
+    <param name="addr_mx_torque_enable" value="$(arg addr_mx_torque_enable)"/>
+    <param name="addr_mx_moving_speed" value="$(arg addr_mx_moving_speed)"/>
+    <param name="moving_speed" value="$(arg moving_speed)"/>
+    <param name="dxl_id1" value="$(arg dxl_id1)"/>
+    <param name="dxl_id2" value="$(arg dxl_id2)"/>
+    <param name="baudrate" value="$(arg baudrate)"/>
+    <param name="motor_1_channel" value="$(arg motor_1_channel)"/>
+    <param name="motor_2_channel" value="$(arg motor_2_channel)"/>
+    <param name="pwm_trim" value="$(arg pwm_trim)"/>
+    <param name="device_name" value="$(arg device_name)"/>
+  </node>
+
+</launch>
