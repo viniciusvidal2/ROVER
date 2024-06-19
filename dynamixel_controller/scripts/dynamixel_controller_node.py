@@ -16,6 +16,12 @@ def exit_handler():
         dxl_comm_result, dxl_error = packetHandler.write2ByteTxRx(
             portHandler, DYNAMIXEL_DATA["DXL_ID2"], ADDR_MX_MOVING_SPEED, 0
         )
+        dxl_comm_result, dxl_error = packetHandler.write2ByteTxRx(
+            portHandler, DYNAMIXEL_DATA["DXL_ID3"], ADDR_MX_MOVING_SPEED, 0
+        )
+        dxl_comm_result, dxl_error = packetHandler.write2ByteTxRx(
+            portHandler, DYNAMIXEL_DATA["DXL_ID4"], ADDR_MX_MOVING_SPEED, 0
+        )
     except:
         rospy.logerr("No motors connected!")
 
@@ -54,6 +60,26 @@ def rc_callback(data):
     dxl_comm_result, dxl_error = packetHandler.write2ByteTxRx(
         portHandler,
         DYNAMIXEL_DATA["DXL_ID2"],
+        DYNAMIXEL_DATA["ADDR_MX_MOVING_SPEED"],
+        output_mapping(
+            data.channels[DYNAMIXEL_DATA["MOTOR_2_CHANNEL"]]
+            - DYNAMIXEL_DATA["PWM_TRIM"]
+        ),
+    )
+    dxl_comm_result, dxl_error = packetHandler.write2ByteTxRx(
+        portHandler,
+        DYNAMIXEL_DATA["DXL_ID3"],
+        DYNAMIXEL_DATA["ADDR_MX_MOVING_SPEED"],
+        output_mapping(
+            -(
+                data.channels[DYNAMIXEL_DATA["MOTOR_1_CHANNEL"]]
+                - DYNAMIXEL_DATA["PWM_TRIM"]
+            )
+        ),
+    )
+    dxl_comm_result, dxl_error = packetHandler.write2ByteTxRx(
+        portHandler,
+        DYNAMIXEL_DATA["DXL_ID4"],
         DYNAMIXEL_DATA["ADDR_MX_MOVING_SPEED"],
         output_mapping(
             data.channels[DYNAMIXEL_DATA["MOTOR_2_CHANNEL"]]
@@ -113,6 +139,32 @@ def init_motors():
     else:
         rospy.loginfo("Dynamixel 2 has been successfully connected")
 
+    dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(
+        portHandler,
+        DYNAMIXEL_DATA["DXL_ID3"],
+        DYNAMIXEL_DATA["ADDR_MX_TORQUE_ENABLE"],
+        1,
+    )
+    if dxl_comm_result != COMM_SUCCESS:
+        rospy.loginfo("%s" % packetHandler.getTxRxResult(dxl_comm_result))
+    elif dxl_error != 0:
+        rospy.loginfo("%s" % packetHandler.getRxPacketError(dxl_error))
+    else:
+        rospy.loginfo("Dynamixel 3 has been successfully connected")
+    
+    dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(
+        portHandler,
+        DYNAMIXEL_DATA["DXL_ID4"],
+        DYNAMIXEL_DATA["ADDR_MX_TORQUE_ENABLE"],
+        1,
+    )
+    if dxl_comm_result != COMM_SUCCESS:
+        rospy.loginfo("%s" % packetHandler.getTxRxResult(dxl_comm_result))
+    elif dxl_error != 0:
+        rospy.loginfo("%s" % packetHandler.getRxPacketError(dxl_error))
+    else:
+        rospy.loginfo("Dynamixel 4 has been successfully connected")
+
 
 def main():
     global DYNAMIXEL_DATA
@@ -125,6 +177,8 @@ def main():
     DYNAMIXEL_DATA["ADDR_MX_MOVING_SPEED"] = rospy.get_param("addr_mx_moving_speed", 32)
     DYNAMIXEL_DATA["DXL_ID1"] = rospy.get_param("dxl_id1", 1)
     DYNAMIXEL_DATA["DXL_ID2"] = rospy.get_param("dxl_id2", 2)
+    DYNAMIXEL_DATA["DXL_ID3"] = rospy.get_param("dxl_id3", 3)
+    DYNAMIXEL_DATA["DXL_ID4"] = rospy.get_param("dxl_id4", 4)
     DYNAMIXEL_DATA["BAUDRATE"] = rospy.get_param("baudrate", 57600)
     DYNAMIXEL_DATA["MOTOR_1_CHANNEL"] = rospy.get_param("motor_1_channel", 0)
     DYNAMIXEL_DATA["MOTOR_2_CHANNEL"] = rospy.get_param("motor_2_channel", 2)
