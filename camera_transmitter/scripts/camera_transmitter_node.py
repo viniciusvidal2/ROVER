@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import rospy
 from sensor_msgs.msg import Image
@@ -7,20 +7,6 @@ import cv2
 
 def transmit_camera_hdmi(width: int, height: int, desired_fps: float):
     cap = cv2.VideoCapture(0)
-    bridge = CvBridge()
-    pub = rospy.Publisher('/frontal_camera', Image, queue_size=10)
-    
-    # Desired size of the display
-    display_size = (width, height)    
-    # # Set the resolution
-    # cap.set(cv2.CAP_PROP_FRAME_WIDTH, display_size[0])
-    # cap.set(cv2.CAP_PROP_FRAME_HEIGHT, display_size[1])
-    able_to_set_resolution = True
-    if cap.get(cv2.CAP_PROP_FRAME_WIDTH) != display_size[0] or cap.get(cv2.CAP_PROP_FRAME_HEIGHT) != display_size[1]:
-        print("Warning: Resolution set not available. We will resize the output frame.")
-        able_to_set_resolution = False
-    else:
-        print("Resolution set successfully to size:", display_size)
     
     # Set the desired frame rate
     if desired_fps == 0:
@@ -58,9 +44,6 @@ def transmit_camera_hdmi(width: int, height: int, desired_fps: float):
             # Check for quit event
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
-            # # Publish in ROS environment
-            # image_msg = bridge.cv2_to_imgmsg(frame, "bgr8")
-            # pub.publish(image_msg)
 
     cap.release()
 
