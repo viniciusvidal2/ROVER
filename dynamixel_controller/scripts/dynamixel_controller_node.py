@@ -8,19 +8,20 @@ import atexit
 
 # Deal with the node kill at execution termination
 def exit_handler():
+    global DYNAMIXEL_DATA
     rospy.loginfo("My application is ending!")
     try:
         dxl_comm_result, dxl_error = packetHandler.write2ByteTxRx(
-            portHandler, DYNAMIXEL_DATA["DXL_ID1"], ADDR_MX_MOVING_SPEED, 0
+            portHandler, DYNAMIXEL_DATA["DXL_ID1"], DYNAMIXEL_DATA["ADDR_MX_MOVING_SPEED"], 0
         )
         dxl_comm_result, dxl_error = packetHandler.write2ByteTxRx(
-            portHandler, DYNAMIXEL_DATA["DXL_ID2"], ADDR_MX_MOVING_SPEED, 0
+            portHandler, DYNAMIXEL_DATA["DXL_ID2"], DYNAMIXEL_DATA["ADDR_MX_MOVING_SPEED"], 0
         )
         dxl_comm_result, dxl_error = packetHandler.write2ByteTxRx(
-            portHandler, DYNAMIXEL_DATA["DXL_ID3"], ADDR_MX_MOVING_SPEED, 0
+            portHandler, DYNAMIXEL_DATA["DXL_ID3"], DYNAMIXEL_DATA["ADDR_MX_MOVING_SPEED"], 0
         )
         dxl_comm_result, dxl_error = packetHandler.write2ByteTxRx(
-            portHandler, DYNAMIXEL_DATA["DXL_ID4"], ADDR_MX_MOVING_SPEED, 0
+            portHandler, DYNAMIXEL_DATA["DXL_ID4"], DYNAMIXEL_DATA["ADDR_MX_MOVING_SPEED"], 0
         )
     except:
         rospy.logerr("No motors connected!")
