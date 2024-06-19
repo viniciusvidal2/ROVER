@@ -84,5 +84,5 @@ You should not neet to run the container by hand in the embedded board, but you 
 
 - Running the docker container passing all the necessary info (provided that you have all the sensors connected. If for some reason you don't, remove the config that relates to the missing sensor):
 ```
-sudo docker run --restart=always -itd --device=/dev/ttyACM0 --device=/dev/ttyUSB0 --device /dev/video0:/dev/video0 --device /dev/video1:/dev/video1 --privileged --group-add video -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix --network host --name rover_docker rover_image:0.1
+sudo docker run --restart=always -itd --device=/dev/ttyACM0 --device=/dev/ttyUSB0 --device /dev/video0:/dev/video0 --device /dev/video1:/dev/video1 --privileged --group-add video -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix --network host --name rover_container rover_image:0.1
 ```
