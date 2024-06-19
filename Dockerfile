@@ -96,12 +96,17 @@ COPY mig_obstacle_avoidance /home/rover/src/mig_obstacle_avoidance
 COPY camera_transmitter /home/rover/src/camera_transmitter
 COPY livox_filter_mig /home/rover/src/livox_filter_mig
 COPY dynamixel_controller /home/rover/src/dynamixel_controller
+RUN chmod +x /home/rover/src/camera_transmitter/scripts/*.py
+RUN chmod +x /home/rover/src/mig_obstacle_avoidance/scripts/*.py
+RUN chmod +x /home/rover/src/dynamixel_controller/scripts/*.py
 RUN catkin build
 
-RUN chmod +x /home/rover/src/dynamixel_controller/scripts/*.py
+RUN echo "source /home/rover/devel/setup.bash" >> /root/.bashrc
+RUN /bin/bash -c "source /home/rover/devel/setup.bash"
 
-COPY ./start_docker.sh /home/rover/
 COPY ./rover_bringup.launch /home/rover/
+COPY ./start_docker.sh /home/rover/
+RUN chmod +x /home/rover/start_docker.sh
 
 # Default command to run
-CMD [ "bash", "-c", "/home/mig_integration0/start_docker.sh && exec bash" ]
+CMD [ "bash", "-c", "/home/rover/start_docker.sh && exec bash" ]
