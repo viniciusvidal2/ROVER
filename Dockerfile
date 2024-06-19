@@ -97,7 +97,7 @@ COPY camera_transmitter /home/rover/src/camera_transmitter
 COPY livox_filter_mig /home/rover/src/livox_filter_mig
 COPY dynamixel_controller /home/rover/src/dynamixel_controller
 RUN chmod +x /home/rover/src/camera_transmitter/scripts/*.py
-RUN chmod +x /home/rover/src/mig_obstacle_avoidance/scripts/*.py
+RUN chmod +x /home/rover/src/mig_obstacle_avoidance/ros/scripts/*.py
 RUN chmod +x /home/rover/src/dynamixel_controller/scripts/*.py
 RUN catkin build
 
