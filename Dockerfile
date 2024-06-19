@@ -82,7 +82,7 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /home/rover/
 COPY ./install_geographiclib_datasets.sh /home/rover/
 RUN chmod +x /home/rover/install_geographiclib_datasets.sh
-RUN ./home/rover/install_geographiclib_datasets.sh
+RUN /home/rover/install_geographiclib_datasets.sh
 
 # Copy and compile Livox SDK 
 COPY Livox-SDK2 /home/rover/src/Livox-SDK2
