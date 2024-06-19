@@ -37,6 +37,6 @@ log "Display service is on!"
 sleep 5s
 echo 1 | sudo -S systemctl enable docker.service
 export DOCKER_HOST_NAME=host
-/usr/bin/docker run --restart=always -itd --device=/dev/ttyACM0 --device=/dev/ttyUSB0 --device /dev/video0:/dev/video0 --device /dev/video1:/dev/video1 --privileged --group-add video -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix --network $DOCKER_HOST_NAME --name rover_docker rover_image:0.1
+/usr/bin/docker run --restart=always -itd --device=/dev/ttyACM0 --device=/dev/ttyUSB0 --device /dev/video0:/dev/video0 --device /dev/video1:/dev/video1 --privileged --group-add video -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix --network $DOCKER_HOST_NAME --name rover_container rover_image:0.1
 
 log "Docker has been run, system started."
