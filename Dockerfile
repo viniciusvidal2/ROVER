@@ -78,6 +78,12 @@ RUN apt-get update && apt-get install -y \
     gstreamer1.0-libav \
     libgstreamer-plugins-base1.0-dev
 
+# Install geographic libs for mavros dependencies
+WORKDIR /home/rover/
+COPY ./install_geographiclib_datasets.sh /home/rover/
+RUN chmod +x /home/rover/install_geographiclib_datasets.sh
+RUN ./home/rover/install_geographiclib_datasets.sh
+
 # Copy and compile Livox SDK 
 COPY Livox-SDK2 /home/rover/src/Livox-SDK2
 RUN mkdir -p /home/rover/src/Livox-SDK2/build
