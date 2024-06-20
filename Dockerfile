@@ -77,6 +77,8 @@ RUN apt-get update && apt-get install -y \
     gstreamer1.0-plugins-ugly \
     gstreamer1.0-libav \
     libgstreamer-plugins-base1.0-dev
+RUN pip3 install opencv-python
+RUN export PYTHONPATH=/usr/local/lib/python3.8/dist-packages:$PYTHONPATH
 
 # Install geographic libs for mavros dependencies
 WORKDIR /home/rover/
