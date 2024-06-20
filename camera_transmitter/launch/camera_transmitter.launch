@@ -1,7 +1,7 @@
 <launch>
 
-  <arg name="width" default="320"/>
-  <arg name="height" default="240"/>
+  <arg name="width" default="1920"/>
+  <arg name="height" default="1080"/>
   <arg name="fps" default="10"/>
 
   <!-- The node to control the camera transmission -->

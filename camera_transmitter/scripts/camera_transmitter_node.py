@@ -15,7 +15,7 @@ def transmit_camera_hdmi(width: int, height: int, desired_fps: float):
     frames_to_skip = int(original_fps/desired_fps) - 1
     cap.set(cv2.CAP_PROP_FPS, desired_fps)
     if original_fps == 0:
-        frames_to_skip = 0
+        frames_to_skip = 5
         print("Warning: Frame rate not available.")
     if desired_fps == cap.get(cv2.CAP_PROP_FPS):
         frames_to_skip = 0
@@ -23,7 +23,8 @@ def transmit_camera_hdmi(width: int, height: int, desired_fps: float):
     print("Frame rate:", original_fps)
     print("Desired frame rate:", desired_fps)
     print("Frames to skip:", frames_to_skip)
-    
+    frames_to_skip = 5
+
     # Create a custom window
     window_name = 'Robot Camera'
     cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
@@ -35,6 +36,9 @@ def transmit_camera_hdmi(width: int, height: int, desired_fps: float):
         frame_count += 1
         if not ret:
             continue
+
+        # Resize the image to the desired size
+        cv2.resize(frame, (width, height))
         
         # Control the frame rate
         if frame_count == frames_to_skip + 1:
@@ -52,8 +56,8 @@ if __name__ == '__main__':
     try:
         rospy.init_node('camera_transmitter', anonymous=False)
     
-        width = rospy.get_param('~width', 640)
-        height = rospy.get_param('~height', 480)
+        width = rospy.get_param('~width', 1920)
+        height = rospy.get_param('~height', 1080)
         fps = rospy.get_param('~fps', 10)
         
         transmit_camera_hdmi(width, height, fps)
