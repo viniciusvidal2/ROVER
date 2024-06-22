@@ -1,17 +1,15 @@
 #!/usr/bin/env python3
 import rospy
-from mavros_msgs.msg import State, GlobalPositionTarget, WaypointReached
-from mavros_msgs.srv import SetMode, CommandBool
-from sensor_msgs.msg import NavSatFix, Imu, LaserScan
+from mavros_msgs.msg import State, GlobalPositionTarget
+from mavros_msgs.srv import SetMode
+from sensor_msgs.msg import NavSatFix, LaserScan
 from std_msgs.msg import  Float64
-from geometry_msgs.msg import Point
-from visualization_msgs.msg import Marker, MarkerArray
+from visualization_msgs.msg import MarkerArray
 import numpy as np
-import math
-import tf
 from time import time
 from pyproj import Proj, transform
 from scipy.spatial.transform import Rotation as R
+from log_debug import *
 
 
 class ObstacleAvoidance:
@@ -50,6 +48,9 @@ class ObstacleAvoidance:
 
         # Publishers
         self.setpoint_pub = rospy.Publisher('/mavros/setpoint_raw/global', GlobalPositionTarget, queue_size=1)
+        self.obstacles_pub = rospy.Publisher('/obstacle_avoidance/obstacles', MarkerArray, queue_size=1)
+        self.forces_pub = rospy.Publisher('/obstacle_avoidance/forces', MarkerArray, queue_size=1)
+        
 
     ############################################################################
     ### FRAME CONVERTION METHODS
@@ -173,6 +174,10 @@ class ObstacleAvoidance:
         # Normalize and apply a gain to the the repulsive force
         if np.linalg.norm(repulsive_force) > 0:
             repulsive_force = self.K * repulsive_force / np.linalg.norm(repulsive_force)
+            
+        # Publish the forces for debug purposes
+        if self.debug_mode:
+            self.forces_pub.publish(createForcesDebugMarkerArray(attraction_force=attractive_force, repulsive_force=repulsive_force, total_force=attractive_force + repulsive_force))
 
         return attractive_force + repulsive_force
 
@@ -220,7 +225,10 @@ class ObstacleAvoidance:
                 goal_baselink_frame = self.worldToBaselink(lat=self.original_target.lat, lon = self.original_target.lon)
                 # Isolate the readings that return the obstacles - obstacles are in pairs of (range, angle) in baselink frame
                 obstacles_baselink_frame = [[r, (i - len(valid_ranges)/2) * scan.angle_increment] for i, r in enumerate(valid_ranges) if r < self.max_obstacle_distance]
-                obstacles_baselink_frame_xy = [self.laserScanToXY(range=r, angle=a) for r, a in obstacles_baselink_frame]
+                if self.debug_mode:
+                    obstacles_baselink_frame_xy = [self.laserScanToXY(range=r, angle=a) for r, a in obstacles_baselink_frame]
+                    self.obstacles_pub.publish(createObstaclesDebugMarkerArray(obstacles_baselink_frame_xy))
+                    
                 # Calculate total force in baselink frame
                 total_force_baselink_frame = self.calculateForces(obstacles_baselink_frame=obstacles_baselink_frame, goal_direction_baselink_frame=goal_baselink_frame)
                 
@@ -236,6 +244,10 @@ class ObstacleAvoidance:
                 guided_point_world_frame_msg.longitude = guided_point_world_frame_lon
                 guided_point_world_frame_msg.altitude = self.current_location.altitude
                 self.setpoint_pub.publish(guided_point_world_frame_msg)
+                
+                # Plot the scenario in a map for debug purposes
+                if self.debug_mode:
+                    plotPointsOnMap(goal=[self.original_target.lat, self.original_target.lon], guided_point=[guided_point_world_frame_lat, guided_point_world_frame_lon], obstacles=[self.baselinkToWorld(x_baselink, y_baselink) for x_baselink, y_baselink in obstacles_baselink_frame_xy], filename=f"debug_maps/map_scenario{getCurrentTimeAsString()}.png")
                 
         elif avoiding:
             if self.debug_mode:

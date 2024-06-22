@@ -37,6 +37,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && pip install psutil \
     && pip install dronekit \
     && pip install pyproj \
+    && pip install contextily \
+    && pip install datetime \
     && rm -rf /var/lib/apt/lists/*
 RUN catkin config --extend /opt/ros/noetic \
     && catkin init \
