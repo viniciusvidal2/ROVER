@@ -32,7 +32,9 @@ class ObstacleAvoidance:
         self.current_state = State() # vehicle driving mode
         self.original_mode = "" # original mode name
         self.max_obstacle_distance = 10 # [m]
-        self.K = -0.75 # potential fields repulsive force gain
+        self.K = 0.75 # potential fields repulsive force gain
+        self.min_guided_point_distance = 3 # the minimum distance a point we are using to avoid obstacles must have from current location [m]
+        self.debug_mode = False # debug mode to print more information
 
         # Subscribers to mavros and laserscan messages
         rospy.Subscriber("/livox/scan", LaserScan, self.laserScanCallback)
@@ -70,7 +72,8 @@ class ObstacleAvoidance:
         # Get current location from latlon to UTM coordinates
         utm_east, utm_north = self.latLonToUtm(lat=self.current_location.lat, lon=self.current_location.lon)
         # Create rotation from baselink to world based on the current yaw and apply
-        world_R_baselink = R.from_euler('z', np.pi/2 - self.current_yaw)
+        world_angle_baselink = np.pi/2 - self.current_yaw
+        world_R_baselink = R.from_euler('z', world_angle_baselink)
         d_utm = world_R_baselink.apply(np.array([x_baselink, y_baselink]))
         # Add to the current location in UTM
         utm_output = np.array([utm_east, utm_north]) + d_utm
@@ -78,7 +81,18 @@ class ObstacleAvoidance:
         return self.utmToLatLon(utm_e=utm_output[0], utm_n=utm_output[1])
 
     def worldToBaselink(self, lat, lon):
-        pass
+        # Get current location from latlon to UTM coordinates
+        utm_east, utm_north = self.latLonToUtm(lat=self.current_location.lat, lon=self.current_location.lon)
+        # Get the target location from latlon to UTM coordinates
+        utm_target_east, utm_target_north = self.latLonToUtm(lat=lat, lon=lon)
+        # Calculate the offset from the current location to the target location in UTM frame
+        d_utm = np.array([utm_target_east, utm_target_north]) - np.array([utm_east, utm_north])
+        # Create rotation from world to baselink based on the current yaw and apply
+        baselink_angle_world = self.current_yaw - np.pi/2
+        baselink_R_world = R.from_euler('z', baselink_angle_world)
+        target_baselink_frame = baselink_R_world.apply(d_utm)
+
+        return target_baselink_frame[0], target_baselink_frame[1]
 
     ############################################################################
     ### SENSOR CALLBACKS
@@ -145,9 +159,6 @@ class ObstacleAvoidance:
             rospy.logerr("Failed to get back to AUTO mode, setting MANUAL mode.")
             self.setFlightMode("MANUAL")
 
-    def calculateGoalDirectionBaselinkFrame(self, target_location_world_frame, current_yaw_world_frame):
-        pass
-
     def calculateForces(self, obstacles_baselink_frame, goal_direction_baselink_frame):
         # We have a normalized repulsive force
         attractive_force = np.array(goal_direction_baselink_frame)/np.linalg.norm(goal_direction_baselink_frame)
@@ -162,9 +173,6 @@ class ObstacleAvoidance:
             repulsive_force = self.K * repulsive_force / np.linalg.norm(repulsive_force)
 
         return attractive_force + repulsive_force
-
-    def travelDirectionBaselinkToWorldFrame(self, force_baselink_frame):
-        pass
 
     ############################################################################
     ### MAIN CONTROL LOOP CALLBACK
@@ -191,49 +199,42 @@ class ObstacleAvoidance:
         
         # If any point is close enough, process the avoidance behavior
         if closest_obstacle_distance < self.max_obstacle_distance:
-            rospy.logerr(f"Obstáculo detectado a menos de {self.max_obstacle_distance}m!")
+            if self.debug_mode:
+                rospy.logwarn(f"Obstacle detected in less than {self.max_obstacle_distance}m!")
+            
             # Start avoiding and set the GUIDED mode to send commands
             avoiding = True
             if self.current_state.mode == "AUTO":
                 self.setFlightMode("GUIDED")
+            
             # In case there is next point in the mission that we can use as goal, we can calculate the avoidance
             if self.original_target:
+                # Grab the goal direction in baselink frame
                 goal_baselink_frame = self.worldToBaselink(lat=self.original_target.lat, lon = self.original_target.lon)
-                goal_angle = np.arctan2(goal_baselink_frame[1], goal_baselink_frame[0])
-                # Isolate the readings that return the obstacles
+                # Isolate the readings that return the obstacles - obstacles are in pairs of (range, angle) in baselink frame
                 obstacles_baselink_frame = [[r, (i - len(valid_ranges)/2) * scan.angle_increment] for i, r in enumerate(valid_ranges) if r < self.max_obstacle_distance]
                 obstacles_baselink_frame_xy = [self.laserScanToXY(range=r, angle=a) for r, a in obstacles_baselink_frame]
-                # Calculate total force
-                total_force = self.calculateForces(obstacles_baselink_frame=obstacles_baselink_frame, goal_direction_baselink_frame=goal_baselink_frame)
-                # Create the new travel point in baselink frame
-
+                # Calculate total force in baselink frame
+                total_force_baselink_frame = self.calculateForces(obstacles_baselink_frame=obstacles_baselink_frame, goal_direction_baselink_frame=goal_baselink_frame)
+                
+                # Create the new guided point in baselink frame based on the total force direction
+                guided_point_distance = np.min([closest_obstacle_distance, self.min_guided_point_distance])
+                guided_point_baselink_frame = guided_point_distance * total_force_baselink_frame/np.linalg.norm(total_force_baselink_frame)
                 # Convert the travel point to world frame
-
+                guided_point_world_frame_lat, guided_point_world_frame_lon = self.baselinkToWorld(x_baselink=guided_point_baselink_frame[0], y_baselink=guided_point_baselink_frame[1])
+                
                 # Send the new point to the vehicle
-
-                goal_direction = calculate_goal_direction(current_location, original_target, current_yaw)
-                goal_angle = np.arctan2(goal_direction[1], goal_direction[0])
-                publish_goal_direction(goal_angle, scan.header.frame_id)                
-                total_force = calculate_forces(valid_ranges, scan.angle_increment, goal_direction)
-                magnitude, desvio_angle = np.linalg.norm(total_force), np.arctan2(total_force[1], total_force[0])
-                x = magnitude * np.cos(current_yaw - desvio_angle) * change_factor 
-                y = magnitude * np.sin(current_yaw - desvio_angle) * change_factor
-                new_lat = current_location.latitude + x
-                new_lon = current_location.longitude + y
-                new_alt = current_location.altitude
-                new_location = GlobalPositionTarget()
-                new_location.latitude = new_lat
-                new_location.longitude = new_lon
-                new_location.altitude = new_alt
-                rospy.loginfo(f"original_target: Lat: {original_target.latitude:.6f}, Lon: {original_target.longitude:.6f}, Alt: {original_target.altitude:.2f}")            
-                rospy.loginfo(f"Movendo para nova localização: Lat: {new_lat:.6f}, Lon: {new_lon:.6f}, Alt: {new_alt:.2f}")
-                setpoint_pub = rospy.Publisher('/mavros/setpoint_raw/global', GlobalPositionTarget, queue_size=1)
-                setpoint_pub.publish(new_location)
-                publish_debug_markers(valid_ranges, scan.angle_increment, scan.angle_min, desvio_angle, scan.header.frame_id)
+                guided_point_world_frame_msg = GlobalPositionTarget()
+                guided_point_world_frame_msg.latitude = guided_point_world_frame_lat
+                guided_point_world_frame_msg.longitude = guided_point_world_frame_lon
+                guided_point_world_frame_msg.altitude = self.current_location.altitude
+                self.setpoint_pub.publish(guided_point_world_frame_msg)
+                
         elif avoiding:
-            rospy.logwarn("No obstacle observed nearby, resuming original mission ...")
-            resume_original_state()
-            avoiding = False
+            if self.debug_mode:
+                rospy.logwarn("No obstacle observed nearby, resuming original mission ...")
+            self.resumeOriginalState()
+            self.avoiding = False
 
 
 if __name__ == "__main__":
