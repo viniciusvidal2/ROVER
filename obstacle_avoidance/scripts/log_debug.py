@@ -12,13 +12,14 @@ import datetime
 def getCurrentTimeAsString():
     """
     Returns the current time as a formatted string suitable for filenames.
-    
+
     The format is: YYYYMMDD_HHMMSS
     """
     # Convert time in seconds to a Python datetime object
     current_time_dt = datetime.datetime.fromtimestamp(time())
-    
+
     return current_time_dt.strftime('%Y%m%d_%H%M%S')
+
 
 def createObstaclesDebugMarkerArray(obstacles):
     marker_array = MarkerArray()
@@ -44,8 +45,9 @@ def createObstaclesDebugMarkerArray(obstacles):
         marker.color.g = 0.0
         marker.color.b = 0.0
         marker_array.markers.append(marker)
-        
+
     return marker_array
+
 
 def createForcesDebugMarkerArray(attraction_force, repulsive_force, total_force):
     marker_array = MarkerArray()
@@ -72,7 +74,7 @@ def createForcesDebugMarkerArray(attraction_force, repulsive_force, total_force)
     marker.points.append(Point(0, 0, 0))
     marker.points.append(Point(attraction_force[0], attraction_force[1], 0))
     marker_array.markers.append(marker)
-    
+
     marker = Marker()
     marker.header.frame_id = "map"
     marker.header.stamp = rospy.Time.now()
@@ -96,7 +98,7 @@ def createForcesDebugMarkerArray(attraction_force, repulsive_force, total_force)
     marker.points.append(Point(0, 0, 0))
     marker.points.append(Point(repulsive_force[0], repulsive_force[1], 0))
     marker_array.markers.append(marker)
-    
+
     marker = Marker()
     marker.header.frame_id = "map"
     marker.header.stamp = rospy.Time.now()
@@ -120,52 +122,60 @@ def createForcesDebugMarkerArray(attraction_force, repulsive_force, total_force)
     marker.points.append(Point(0, 0, 0))
     marker.points.append(Point(total_force[0], total_force[1], 0))
     marker_array.markers.append(marker)
-    
+
     return marker_array
+
 
 def plotPointsOnMap(goal, guided_point, obstacles, filename):
     """
     Plots a goal, a guided point, and a list of obstacles on a map with a high zoom level.
-    
+
     Parameters:
     goal (numpy.ndarray): The goal point (latitude, longitude).
     guided_point (numpy.ndarray): The guided point (latitude, longitude).
     obstacles (list of numpy.ndarray): A list of obstacle points (latitude, longitude).
     filename (str): The name of the file to save the plotted map as a PNG image.
     """
-    
+
     # Create a figure and axis
     _, ax = plt.subplots(figsize=(10, 10))
-    
+
     # Plot the points on the map
     ax.scatter(goal[1], goal[0], c='green', s=100, label='Goal')
-    ax.scatter(guided_point[1], guided_point[0], c='blue', s=100, label='Guided Point')
-    
+    ax.scatter(guided_point[1], guided_point[0],
+               c='blue', s=100, label='Guided Point')
+
     # Convert the list of points to a numpy array for easier indexing
     obstacles_array = np.array(obstacles)
-    ax.scatter(obstacles_array[:, 1], obstacles_array[:, 0], c='red', s=50, label='Obstacles')
-    
+    ax.scatter(obstacles_array[:, 1], obstacles_array[:,
+               0], c='red', s=50, label='Obstacles')
+
     # Define the zoom level (50 meters in each direction)
-    zoom_radius = 50 / 111320  # Approx. 1 meter in degrees (latitude/longitude)
-    min_lat = min(goal[0], guided_point[0], *obstacles_array[:, 0]) - zoom_radius
-    max_lat = max(goal[0], guided_point[0], *obstacles_array[:, 0]) + zoom_radius
-    min_lon = min(goal[1], guided_point[1], *obstacles_array[:, 1]) - zoom_radius
-    max_lon = max(goal[1], guided_point[1], *obstacles_array[:, 1]) + zoom_radius
-    
+    # Approx. 1 meter in degrees (latitude/longitude)
+    zoom_radius = 50 / 111320
+    min_lat = min(goal[0], guided_point[0], *
+                  obstacles_array[:, 0]) - zoom_radius
+    max_lat = max(goal[0], guided_point[0], *
+                  obstacles_array[:, 0]) + zoom_radius
+    min_lon = min(goal[1], guided_point[1], *
+                  obstacles_array[:, 1]) - zoom_radius
+    max_lon = max(goal[1], guided_point[1], *
+                  obstacles_array[:, 1]) + zoom_radius
+
     # Set the map limits to zoom into the area
     ax.set_xlim(min_lon, max_lon)
     ax.set_ylim(min_lat, max_lat)
-    
+
     # Add basemap from contextily
     ctx.add_basemap(ax, crs='EPSG:4326', source=ctx.providers.Stamen.TonerLite)
-    
+
     # Add a legend
     ax.legend()
-    
+
     # Set labels
     ax.set_xlabel('Longitude')
     ax.set_ylabel('Latitude')
-    
+
     # Save the plot as a PNG file
     plt.savefig(filename, dpi=300, bbox_inches='tight')
     plt.close()
