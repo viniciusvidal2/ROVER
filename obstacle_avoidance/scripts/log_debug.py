@@ -48,6 +48,54 @@ def createObstaclesDebugMarkerArray(obstacles):
 
     return marker_array
 
+def createGoalGuidedPointDebugMarkerArray(goal, guided_point):
+    marker_array = MarkerArray()
+    marker = Marker()
+    marker.header.frame_id = "map"
+    marker.header.stamp = rospy.Time.now()
+    marker.id = 0
+    marker.type = Marker.SPHERE
+    marker.action = Marker.ADD
+    marker.pose.position.x = goal[0]
+    marker.pose.position.y = goal[1]
+    marker.pose.position.z = 0.5
+    marker.pose.orientation.x = 0.0
+    marker.pose.orientation.y = 0.0
+    marker.pose.orientation.z = 0.0
+    marker.pose.orientation.w = 1.0
+    marker.scale.x = 0.5
+    marker.scale.y = 0.5
+    marker.scale.z = 1.0
+    marker.color.a = 1.0
+    marker.color.r = 0.0
+    marker.color.g = 1.0
+    marker.color.b = 0.0
+    marker_array.markers.append(marker)
+    
+    marker = Marker()
+    marker.header.frame_id = "map"
+    marker.header.stamp = rospy.Time.now()
+    marker.id = 1
+    marker.type = Marker.SPHERE
+    marker.action = Marker.ADD
+    marker.pose.position.x = guided_point[0]
+    marker.pose.position.y = guided_point[1]
+    marker.pose.position.z = 0.5
+    marker.pose.orientation.x = 0.0
+    marker.pose.orientation.y = 0.0
+    marker.pose.orientation.z = 0.0
+    marker.pose.orientation.w = 1.0
+    marker.scale.x = 0.5
+    marker.scale.y = 0.5
+    marker.scale.z = 1.0
+    marker.color.a = 1.0
+    marker.color.r = 0.0
+    marker.color.g = 0.0
+    marker.color.b = 1.0
+    marker_array.markers.append(marker)
+    
+    return marker_array
+
 
 def createForcesDebugMarkerArray(attraction_force, repulsive_force, total_force):
     marker_array = MarkerArray()
@@ -150,9 +198,8 @@ def plotPointsOnMap(goal, guided_point, obstacles, filename):
     ax.scatter(obstacles_array[:, 1], obstacles_array[:,
                0], c='red', s=50, label='Obstacles')
 
-    # Define the zoom level (50 meters in each direction)
-    # Approx. 1 meter in degrees (latitude/longitude)
-    zoom_radius = 50 / 111320
+    # Define the zoom level
+    zoom_radius = 100 / 111320
     min_lat = min(goal[0], guided_point[0], *
                   obstacles_array[:, 0]) - zoom_radius
     max_lat = max(goal[0], guided_point[0], *
@@ -167,7 +214,7 @@ def plotPointsOnMap(goal, guided_point, obstacles, filename):
     ax.set_ylim(min_lat, max_lat)
 
     # Add basemap from contextily
-    ctx.add_basemap(ax, crs='EPSG:4326', source=ctx.providers.Stamen.TonerLite)
+    ctx.add_basemap(ax, crs='EPSG:4326', source=ctx.providers.OpenStreetMap.Mapnik)
 
     # Add a legend
     ax.legend()
