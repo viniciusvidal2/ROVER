@@ -164,3 +164,5 @@ cython_debug/
 DynamixelSDK/python/build
 DynamixelSDK/python/dist
 DynamixelSDK/python/src/dynamixel_sdk.egg-info
+obstacle_avoidance/debug
+obstacle_avoidance/scripts/__pycache__

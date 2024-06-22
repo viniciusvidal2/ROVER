@@ -39,20 +39,21 @@ class ObstacleAvoidance:
         self.K = 0.75  # potential fields repulsive force gain
         # the minimum distance a point we are using to avoid obstacles must have from current location [m]
         self.min_guided_point_distance = 3
-        self.debug_mode = False  # debug mode to print more information
+        self.debug_mode = True  # debug mode to print more information
 
+        # If the image and logging folders are not created, make sure we create it
+        self.debug_folder = "/home/vini/ROVER/obstacle_avoidance/debug"
+        if not os.path.exists(os.path.join(self.debug_folder, "debug_maps")):
+            os.makedirs(os.path.join(self.debug_folder, "debug_maps"))
+        if not os.path.exists(os.path.join(self.debug_folder, "logs")):
+            os.makedirs(os.path.join(self.debug_folder, "logs"))
         # Logging setup
         logging.basicConfig(
-            filename=f"logs/run_{getCurrentTimeAsString()}.log",
+            filename=os.path.join(self.debug_folder, f"logs/run_{getCurrentTimeAsString()}.log"),
             level=logging.DEBUG,
             format='%(asctime)s - %(levelname)s - %(message)s',
             datefmt='%Y-%m-%d %H:%M:%S'
         )
-        # If the image and logging folders are not created, make sure we create it
-        if not os.path.exists("debug_maps"):
-            os.makedirs("debug_maps")
-        if not os.path.exists("logs"):
-            os.makedirs("logs")
 
         # Subscribers to mavros and laserscan messages
         rospy.Subscriber("/livox/scan", LaserScan, self.laserScanCallback)
@@ -73,11 +74,14 @@ class ObstacleAvoidance:
             '/mavros/setpoint_raw/global', GlobalPositionTarget, queue_size=1)
         self.obstacles_pub = rospy.Publisher(
             '/obstacle_avoidance/obstacles', MarkerArray, queue_size=1)
+        self.goal_guided_point_pub = rospy.Publisher(
+            '/obstacle_avoidance/goal_guided_point', MarkerArray, queue_size=1)
         self.forces_pub = rospy.Publisher(
             '/obstacle_avoidance/forces', MarkerArray, queue_size=1)
 
         rospy.loginfo("Obstacle avoidance node initialized.")
         logging.info("Obstacle avoidance node initialized.")
+        rospy.spin()
 
     ############################################################################
     # LOGGING
@@ -87,10 +91,10 @@ class ObstacleAvoidance:
         logging.debug(f"Information for this loop: {time()}")
         logging.debug(f"Current state: {self.current_state}")
         logging.debug(
-            f"Current location: lat {self.current_location.lat} lon {self.current_location.lon}")
+            f"Current location: lat {self.current_location.latitude} lon {self.current_location.longitude}")
         logging.debug(f"Current yaw: {self.current_yaw} degrees")
         logging.debug(
-            f"Original target: lat {self.original_target.lat} lon {self.original_target.lon}")
+            f"Original target: lat {self.original_target.latitude} lon {self.original_target.longitude}")
         logging.debug(f"Original mode: {self.original_mode}")
         logging.debug(f"Is avoiding: {self.avoiding}")
         logging.debug(
@@ -123,29 +127,36 @@ class ObstacleAvoidance:
     def baselinkToWorld(self, x_baselink, y_baselink):
         # Get current location from latlon to UTM coordinates
         utm_east, utm_north = self.latLonToUtm(
-            lat=self.current_location.lat, lon=self.current_location.lon)
+            lat=self.current_location.latitude, lon=self.current_location.longitude)
         # Create rotation from baselink to world based on the current yaw and apply
         world_angle_baselink = np.pi/2 - self.current_yaw
         world_R_baselink = R.from_euler('z', world_angle_baselink)
-        d_utm = world_R_baselink.apply(np.array([x_baselink, y_baselink]))
+        d_utm = world_R_baselink.apply(np.array([x_baselink, y_baselink, 0]))
         # Add to the current location in UTM
-        utm_output = np.array([utm_east, utm_north]) + d_utm
+        utm_output = np.array([utm_east, utm_north, 0]) + d_utm
 
         return self.utmToLatLon(utm_e=utm_output[0], utm_n=utm_output[1])
 
-    def worldToBaselink(self, lat, lon):
+    def worldToBaselink(self, target_lat, target_lon):
         # Get current location from latlon to UTM coordinates
         utm_east, utm_north = self.latLonToUtm(
-            lat=self.current_location.lat, lon=self.current_location.lon)
+            lat=self.current_location.latitude, lon=self.current_location.longitude)
+        rospy.logwarn(f"Current location in UTM: {utm_east}, {utm_north}")
+        rospy.loginfo(f"Original mode: {self.original_mode}")
+        rospy.loginfo(f"Original target: {self.original_target}")
         # Get the target location from latlon to UTM coordinates
-        utm_target_east, utm_target_north = self.latLonToUtm(lat=lat, lon=lon)
+        utm_target_east, utm_target_north = self.latLonToUtm(
+            lat=target_lat, lon=target_lon)
         # Calculate the offset from the current location to the target location in UTM frame
-        d_utm = np.array([utm_target_east, utm_target_north]
-                         ) - np.array([utm_east, utm_north])
+        d_utm = np.array([utm_target_east, utm_target_north, 0]
+                         ) - np.array([utm_east, utm_north, 0])
+        rospy.loginfo(f"Target location in UTM: {utm_target_east}, {utm_target_north}")
+        rospy.loginfo(f"Offset from current location to target location in UTM: {d_utm}")
         # Create rotation from world to baselink based on the current yaw and apply
         baselink_angle_world = self.current_yaw - np.pi/2
         baselink_R_world = R.from_euler('z', baselink_angle_world)
         target_baselink_frame = baselink_R_world.apply(d_utm)
+        rospy.loginfo(f"Target in baselink frame: {target_baselink_frame}")
 
         return target_baselink_frame[0], target_baselink_frame[1]
 
@@ -153,7 +164,7 @@ class ObstacleAvoidance:
     # SENSOR CALLBACKS
     ############################################################################
     def targetPointCallback(self, data):
-        if not self.avoiding:
+        if not self.avoiding and self.original_mode == "AUTO":
             self.original_target = data
 
     def stateCallback(self, state):
@@ -208,9 +219,6 @@ class ObstacleAvoidance:
                 if self.original_mode == "AUTO" and self.original_wp_index is not None:
                     rospy.loginfo(
                         f"Resuming mission in waypoint {self.original_wp_index} in AUTO mode.")
-                # elif self.original_mode == "GUIDED" and self.original_target:
-                #     self.setpoint_pub.publish(self.original_target)
-                #     rospy.loginfo(f"Retomando movimento para o alvo original em GUIDED: {self.original_target}")
             except rospy.ServiceException as e:
                 rospy.logerr(f"Failed to resume original state: {e}")
         else:
@@ -285,10 +293,11 @@ class ObstacleAvoidance:
             if self.original_target:
                 # Grab the goal direction in baselink frame
                 goal_baselink_frame = self.worldToBaselink(
-                    lat=self.original_target.lat, lon=self.original_target.lon)
+                    target_lat=self.original_target.latitude, target_lon=self.original_target.longitude)
                 # Isolate the readings that return the obstacles - obstacles are in pairs of (range, angle) in baselink frame
-                obstacles_baselink_frame = [[r, (i - len(valid_ranges)/2) * scan.angle_increment]
+                obstacles_baselink_frame = [[r, i * scan.angle_increment - scan.angle_min]
                                             for i, r in enumerate(valid_ranges) if r < self.max_obstacle_distance]
+                rospy.loginfo(f"Goal in baselink frame: {goal_baselink_frame}")
                 if self.debug_mode:
                     obstacles_baselink_frame_xy = [self.laserScanToXY(
                         range=r, angle=a) for r, a in obstacles_baselink_frame]
@@ -316,10 +325,14 @@ class ObstacleAvoidance:
                 guided_point_world_frame_msg.altitude = self.current_location.altitude
                 self.setpoint_pub.publish(guided_point_world_frame_msg)
 
+                # Publish goal and target points for debug purposes
+                if self.debug_mode:
+                    self.goal_guided_point_pub.publish(createGoalGuidedPointDebugMarkerArray(
+                        goal=goal_baselink_frame, guided_point=guided_point_baselink_frame))
                 # Plot the scenario in a map for debug purposes
                 if self.debug_mode:
-                    plotPointsOnMap(goal=[self.original_target.lat, self.original_target.lon], guided_point=[guided_point_world_frame_lat, guided_point_world_frame_lon], obstacles=[
-                                    self.baselinkToWorld(x_baselink, y_baselink) for x_baselink, y_baselink in obstacles_baselink_frame_xy], filename=f"debug_maps/map_scenario{getCurrentTimeAsString()}.png")
+                    # plotPointsOnMap(goal=[self.original_target.latitude, self.original_target.longitude], guided_point=[guided_point_world_frame_lat, guided_point_world_frame_lon], obstacles=[
+                    #                 self.baselinkToWorld(x_baselink, y_baselink) for x_baselink, y_baselink in obstacles_baselink_frame_xy], filename=os.path.join(self.debug_folder, f"debug_maps/map_scenario{getCurrentTimeAsString()}.png"))
                     self.logCallbackLoop(
                         obstacles_baselink_frame, goal_baselink_frame, guided_point_baselink_frame)
 

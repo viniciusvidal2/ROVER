@@ -3,11 +3,11 @@
     <!-- Arguments -->
     <arg name="oa_approach" default="1"/>
     <!-- For board -->
-    <arg name="fcu_url" default="/dev/ttyACM0:57600"/>
-    <arg name="gcs_url" default="udp://:14551@127.0.0.1:14551"/>
+    <!-- <arg name="fcu_url" default="/dev/ttyACM0:57600"/>
+    <arg name="gcs_url" default="udp://:14551@127.0.0.1:14551"/> -->
     <!-- For SITL -->
-    <!-- <arg name="fcu_url" default="tcp://127.0.0.1:5762" />
-    <arg name="gcs_url" default="tcp://127.0.0.1:5763" /> -->
+    <arg name="fcu_url" default="tcp://127.0.0.1:5762" />
+    <arg name="gcs_url" default="tcp://127.0.0.1:5763" />
     <arg name="tgt_system" default="1"/>
     <arg name="tgt_component" default="1"/>
     <arg name="log_output" default="log"/>
@@ -31,24 +31,22 @@
     </include>
 
     <!-- Livox sensor - mid360-->
-    <include file="$(find livox_ros_driver2)/launch/rviz_MID360.launch">
+    <!-- <include file="$(find livox_ros_driver2)/launch/rviz_MID360.launch">
         <arg name="rviz_enable" value="false"/>
-    </include>
+    </include> -->
 
     <!-- Livox filter -->
     <rosparam command="load" file="$(find livox_filter_mig)/config/params.yaml"/>
     <node name="filter_raw_cloud_node" pkg="livox_filter_mig" type="filter_raw_cloud_node" output="screen"/>
 
     <!-- USB camera for herelink transmission -->
-    <include file="$(find camera_transmitter)/launch/camera_transmitter.launch"/>
+    <!-- <include file="$(find camera_transmitter)/launch/camera_transmitter.launch"/> -->
 
     <!-- Dynamixel controllers -->
-    <include file="$(find dynamixel_controller)/launch/dynamixel_controller.launch"/>
+    <!-- <include file="$(find dynamixel_controller)/launch/dynamixel_controller.launch"/> -->
 
     <!-- Choosing which obstacle avoidance algorithm to run based on value -->
-    <node pkg="mig_obstacle_avoidance" type="obstAvoid0.py" name="obstAvoid0" if="$(eval arg('oa_approach') == 0)"/>
-    <node pkg="mig_obstacle_avoidance" type="obstAvoid1p.py" name="obstAvoid1p" if="$(eval arg('oa_approach') == 1)">
-        <remap from="/scan" to="/livox/scan"/> <!-- We are only using livox data in this algorithm for the rover -->
-    </node>
+    <!-- <node pkg="obstacle_avoidance" type="obstacle_avoidance_pf_node.py" name="obstacle_avoidance_pf_node"/> -->
+    
 
 </launch>
