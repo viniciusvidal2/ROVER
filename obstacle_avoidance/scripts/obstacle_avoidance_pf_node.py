@@ -29,6 +29,8 @@ class ObstacleAvoidance:
         self.original_target = None # target waypoint data in AUTO mode
         self.avoiding = False # control if we are in a scenario to run the algorithm or not
         self.last_input_scan_message_time = time() # control the node execution incoming messages
+        self.last_guided_point_time = time() # control the time when we last sent a guided point
+        self.guided_point_sending_interval = 0.5 # [s]
         self.current_state = State() # vehicle driving mode
         self.original_mode = "" # original mode name
         self.max_obstacle_distance = 10 # [m]
@@ -206,6 +208,11 @@ class ObstacleAvoidance:
             avoiding = True
             if self.current_state.mode == "AUTO":
                 self.setFlightMode("GUIDED")
+                
+            # Lets only proceed if there is enough time since we last sent a guided point to the vehicle
+            if time() - self.last_guided_point_time < self.guided_point_sending_interval:
+                return
+            self.last_guided_point_time = time()
             
             # In case there is next point in the mission that we can use as goal, we can calculate the avoidance
             if self.original_target:
@@ -218,7 +225,7 @@ class ObstacleAvoidance:
                 total_force_baselink_frame = self.calculateForces(obstacles_baselink_frame=obstacles_baselink_frame, goal_direction_baselink_frame=goal_baselink_frame)
                 
                 # Create the new guided point in baselink frame based on the total force direction
-                guided_point_distance = np.min([closest_obstacle_distance, self.min_guided_point_distance])
+                guided_point_distance = np.max([closest_obstacle_distance, self.min_guided_point_distance])
                 guided_point_baselink_frame = guided_point_distance * total_force_baselink_frame/np.linalg.norm(total_force_baselink_frame)
                 # Convert the travel point to world frame
                 guided_point_world_frame_lat, guided_point_world_frame_lon = self.baselinkToWorld(x_baselink=guided_point_baselink_frame[0], y_baselink=guided_point_baselink_frame[1])
