@@ -39,21 +39,23 @@ class ObstacleAvoidance:
         self.K = 0.75  # potential fields repulsive force gain
         # the minimum distance a point we are using to avoid obstacles must have from current location [m]
         self.min_guided_point_distance = 3
-        self.debug_mode = True  # debug mode to print more information
+        self.debug_mode = False  # debug mode to print more information
 
         # If the image and logging folders are not created, make sure we create it
-        self.debug_folder = "/home/vini/ROVER/obstacle_avoidance/debug"
-        if not os.path.exists(os.path.join(self.debug_folder, "debug_maps")):
-            os.makedirs(os.path.join(self.debug_folder, "debug_maps"))
-        if not os.path.exists(os.path.join(self.debug_folder, "logs")):
-            os.makedirs(os.path.join(self.debug_folder, "logs"))
-        # Logging setup
-        logging.basicConfig(
-            filename=os.path.join(self.debug_folder, f"logs/run_{getCurrentTimeAsString()}.log"),
-            level=logging.DEBUG,
-            format='%(asctime)s - %(levelname)s - %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S'
-        )
+        if self.debug_mode:
+            self.debug_folder = "/home/rover/src/obstacle_avoidance/debug"
+            if not os.path.exists(os.path.join(self.debug_folder, "debug_maps")):
+                os.makedirs(os.path.join(self.debug_folder, "debug_maps"))
+            if not os.path.exists(os.path.join(self.debug_folder, "logs")):
+                os.makedirs(os.path.join(self.debug_folder, "logs"))
+            # Logging setup
+            logging.basicConfig(
+                filename=os.path.join(
+                    self.debug_folder, f"logs/run_{getCurrentTimeAsString()}.log"),
+                level=logging.DEBUG,
+                format='%(asctime)s - %(levelname)s - %(message)s',
+                datefmt='%Y-%m-%d %H:%M:%S'
+            )
 
         # Subscribers to mavros and laserscan messages
         rospy.Subscriber("/livox/scan", LaserScan, self.laserScanCallback)
@@ -141,22 +143,16 @@ class ObstacleAvoidance:
         # Get current location from latlon to UTM coordinates
         utm_east, utm_north = self.latLonToUtm(
             lat=self.current_location.latitude, lon=self.current_location.longitude)
-        rospy.logwarn(f"Current location in UTM: {utm_east}, {utm_north}")
-        rospy.loginfo(f"Original mode: {self.original_mode}")
-        rospy.loginfo(f"Original target: {self.original_target}")
         # Get the target location from latlon to UTM coordinates
         utm_target_east, utm_target_north = self.latLonToUtm(
             lat=target_lat, lon=target_lon)
         # Calculate the offset from the current location to the target location in UTM frame
         d_utm = np.array([utm_target_east, utm_target_north, 0]
                          ) - np.array([utm_east, utm_north, 0])
-        rospy.loginfo(f"Target location in UTM: {utm_target_east}, {utm_target_north}")
-        rospy.loginfo(f"Offset from current location to target location in UTM: {d_utm}")
         # Create rotation from world to baselink based on the current yaw and apply
         baselink_angle_world = self.current_yaw - np.pi/2
         baselink_R_world = R.from_euler('z', baselink_angle_world)
         target_baselink_frame = baselink_R_world.apply(d_utm)
-        rospy.loginfo(f"Target in baselink frame: {target_baselink_frame}")
 
         return target_baselink_frame[0], target_baselink_frame[1]
 
@@ -164,14 +160,21 @@ class ObstacleAvoidance:
     # SENSOR CALLBACKS
     ############################################################################
     def targetPointCallback(self, data):
-        if not self.avoiding and self.original_mode == "AUTO":
+        # Only update it if we are not already avoiding a point in GUIDED mode
+        if not self.avoiding and self.original_mode == "AUTO" and self.current_state.mode != "GUIDED":
             self.original_target = data
 
     def stateCallback(self, state):
+        # Check the state to see if we are coming back from GUIDED
+        if state == "GUIDED" and self.current_state.mode == "AUTO":
+            self.avoiding = False
+        # If transfering from AUTO to GUIDED, it means we are starting the avoidance
+        if state == "GUIDED" and self.original_mode == "AUTO":
+            self.avoiding = True
         # Update the mode we are travelling
         self.current_state = state
         # If not avoiding yet, we want to record which mode we were using to return to it afterwards
-        if not self.avoiding:
+        if not self.avoiding and self.current_state.mode != "GUIDED":
             self.original_mode = self.current_state.mode
 
     def gpsCallback(self, data):
@@ -183,9 +186,9 @@ class ObstacleAvoidance:
 
     def travelStateCheckCallback(self, event):
         # Check if we are some time with no input data, and if so get back to AUTO mode mission
-        if self.avoiding and time() - self.last_input_scan_message_time > 1:
+        if time() - self.last_input_scan_message_time > 4:
             rospy.logwarn(
-                "No data was received in the last 1 second. Returning to original state ...")
+                "No data was received in the last 4 seconds. Returning to original state ...")
             self.resumeOriginalState()
             self.avoiding = False
 
@@ -213,12 +216,10 @@ class ObstacleAvoidance:
         # Try to get back to AUTO mode after obstacle is avoided
         # If AUTO, resume mission where it left of
         # If any errors, get back to manual mode
-        if self.original_mode and self.original_mode == "AUTO":
+        if self.original_mode == "AUTO" and self.current_state != "AUTO":
             try:
                 self.setFlightMode(self.original_mode)
-                if self.original_mode == "AUTO" and self.original_wp_index is not None:
-                    rospy.loginfo(
-                        f"Resuming mission in waypoint {self.original_wp_index} in AUTO mode.")
+                rospy.loginfo(f"Resuming mission in AUTO mode.")
             except rospy.ServiceException as e:
                 rospy.logerr(f"Failed to resume original state: {e}")
         else:
@@ -234,8 +235,9 @@ class ObstacleAvoidance:
         # The repulsive force must have the opposite direction of the angle unit vector itself from the vehicle to the obstacle
         repulsive_force = np.array([0.0, 0.0])
         for obstacle_distance, angle in obstacles_baselink_frame:
-            # * np.sqrt(obstacle_size)
-            repulsion_strength = (1 / max(obstacle_distance, 1))**2
+            # avoid zero distance
+            obstacle_distance = min(obstacle_distance, 0.1)
+            repulsion_strength = (1 / obstacle_distance)**2
             repulsive_force -= repulsion_strength * \
                 np.array([np.cos(angle), np.sin(angle)])
         # Normalize and apply a gain to the the repulsive force
@@ -331,8 +333,8 @@ class ObstacleAvoidance:
                         goal=goal_baselink_frame, guided_point=guided_point_baselink_frame))
                 # Plot the scenario in a map for debug purposes
                 if self.debug_mode:
-                    # plotPointsOnMap(goal=[self.original_target.latitude, self.original_target.longitude], guided_point=[guided_point_world_frame_lat, guided_point_world_frame_lon], obstacles=[
-                    #                 self.baselinkToWorld(x_baselink, y_baselink) for x_baselink, y_baselink in obstacles_baselink_frame_xy], filename=os.path.join(self.debug_folder, f"debug_maps/map_scenario{getCurrentTimeAsString()}.png"))
+                    plotPointsOnMap(goal=[self.original_target.latitude, self.original_target.longitude], guided_point=[guided_point_world_frame_lat, guided_point_world_frame_lon], obstacles=[
+                                    self.baselinkToWorld(x_baselink, y_baselink) for x_baselink, y_baselink in obstacles_baselink_frame_xy], filename=os.path.join(self.debug_folder, f"debug_maps/map_scenario{getCurrentTimeAsString()}.png"))
                     self.logCallbackLoop(
                         obstacles_baselink_frame, goal_baselink_frame, guided_point_baselink_frame)
 
