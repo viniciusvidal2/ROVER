@@ -9,6 +9,8 @@ import numpy as np
 from time import time
 from pyproj import Proj, transform
 from scipy.spatial.transform import Rotation as R
+import logging
+import os
 from log_debug import *
 
 
@@ -35,6 +37,19 @@ class ObstacleAvoidance:
         self.K = 0.75 # potential fields repulsive force gain
         self.min_guided_point_distance = 3 # the minimum distance a point we are using to avoid obstacles must have from current location [m]
         self.debug_mode = False # debug mode to print more information
+        
+        # Logging setup
+        logging.basicConfig(
+        filename=f"logs/run_{getCurrentTimeAsString()}.log",
+        level=logging.DEBUG,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+        )
+        # If the image and logging folders are not created, make sure we create it
+        if not os.path.exists("debug_maps"):
+            os.makedirs("debug_maps")
+        if not os.path.exists("logs"):
+            os.makedirs("logs")
 
         # Subscribers to mavros and laserscan messages
         rospy.Subscriber("/livox/scan", LaserScan, self.laserScanCallback)
@@ -50,6 +65,26 @@ class ObstacleAvoidance:
         self.setpoint_pub = rospy.Publisher('/mavros/setpoint_raw/global', GlobalPositionTarget, queue_size=1)
         self.obstacles_pub = rospy.Publisher('/obstacle_avoidance/obstacles', MarkerArray, queue_size=1)
         self.forces_pub = rospy.Publisher('/obstacle_avoidance/forces', MarkerArray, queue_size=1)
+        
+        rospy.loginfo("Obstacle avoidance node initialized.")
+        logging.info("Obstacle avoidance node initialized.")
+        
+
+    ############################################################################
+    ### LOGGING
+    ############################################################################
+    def logCallbackLoop(self, obstacles_baselink_frame, goal_baselink_frame, guided_point_baselink_frame):
+        logging.debug(f"Information for this loop: {time()}")
+        logging.debug(f"Current state: {self.current_state}")
+        logging.debug(f"Current location: lat {self.current_location.lat} lon {self.current_location.lon}")
+        logging.debug(f"Current yaw: {self.current_yaw} degrees")
+        logging.debug(f"Original target: lat {self.original_target.lat} lon {self.original_target.lon}")
+        logging.debug(f"Original mode: {self.original_mode}")
+        logging.debug(f"Is avoiding: {self.avoiding}")
+        logging.debug(f"Goal direction in baselink frame: {goal_baselink_frame}")
+        logging.debug(f"Guided point in baselink frame: {guided_point_baselink_frame}")
+        for i, obstacle in enumerate(obstacles_baselink_frame):
+            logging.debug(f"Obstacle {i} in baselink frame: {obstacle}")
         
 
     ############################################################################
@@ -248,7 +283,8 @@ class ObstacleAvoidance:
                 # Plot the scenario in a map for debug purposes
                 if self.debug_mode:
                     plotPointsOnMap(goal=[self.original_target.lat, self.original_target.lon], guided_point=[guided_point_world_frame_lat, guided_point_world_frame_lon], obstacles=[self.baselinkToWorld(x_baselink, y_baselink) for x_baselink, y_baselink in obstacles_baselink_frame_xy], filename=f"debug_maps/map_scenario{getCurrentTimeAsString()}.png")
-                
+                    self.logCallbackLoop(obstacles_baselink_frame, goal_baselink_frame, guided_point_baselink_frame)
+                    
         elif avoiding:
             if self.debug_mode:
                 rospy.logwarn("No obstacle observed nearby, resuming original mission ...")
