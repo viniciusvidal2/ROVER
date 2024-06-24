@@ -58,14 +58,14 @@ class ObstacleAvoidance:
             )
 
         # Subscribers to mavros and laserscan messages
-        rospy.Subscriber("/livox/scan", LaserScan, self.laserScanCallback)
+        rospy.Subscriber("/livox/scan", LaserScan, self.laserScanCallback, queue_size=1)
         rospy.Subscriber("/mavros/setpoint_raw/target_global",
-                         GlobalPositionTarget, self.targetPointCallback)
-        rospy.Subscriber("/mavros/state", State, self.stateCallback)
+                         GlobalPositionTarget, self.targetPointCallback, queue_size=1)
+        rospy.Subscriber("/mavros/state", State, self.stateCallback, queue_size=1)
         rospy.Subscriber("/mavros/global_position/global",
-                         NavSatFix, self.gpsCallback)
+                         NavSatFix, self.gpsCallback, queue_size=1)
         rospy.Subscriber("/mavros/global_position/compass_hdg",
-                         Float64, self.compassCallback)
+                         Float64, self.compassCallback, queue_size=1)
 
         # If no message for some reason, resume original state with a frequency based callback
         self.timer_cb = rospy.Timer(rospy.Duration(
@@ -299,7 +299,6 @@ class ObstacleAvoidance:
                 # Isolate the readings that return the obstacles - obstacles are in pairs of (range, angle) in baselink frame
                 obstacles_baselink_frame = [[r, i * scan.angle_increment - scan.angle_min]
                                             for i, r in enumerate(valid_ranges) if r < self.max_obstacle_distance]
-                rospy.loginfo(f"Goal in baselink frame: {goal_baselink_frame}")
                 if self.debug_mode:
                     obstacles_baselink_frame_xy = [self.laserScanToXY(
                         range=r, angle=a) for r, a in obstacles_baselink_frame]
