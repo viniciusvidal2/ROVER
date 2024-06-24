@@ -51,8 +51,7 @@ RUN catkin config --extend /opt/ros/noetic \
     && catkin build
 
 # Instal geographic dependencies
-ENV PATH=/usr/bin:$PATH
-RUN pip install pyproj datetime
+RUN pip install pyproj datetime matplotlib scipy
 
 # Installing mavros and other dependencies
 RUN apt-get update \
@@ -112,6 +111,7 @@ COPY dynamixel_controller /home/rover/src/dynamixel_controller
 RUN chmod +x /home/rover/src/camera_transmitter/scripts/*.py
 RUN chmod +x /home/rover/src/mig_obstacle_avoidance/ros/scripts/*.py
 RUN chmod +x /home/rover/src/dynamixel_controller/scripts/*.py
+RUN chmod +x /home/rover/src/obstacle_avoidance/scripts/*.py
 RUN catkin build
 
 RUN echo "source /home/rover/devel/setup.bash" >> /root/.bashrc
