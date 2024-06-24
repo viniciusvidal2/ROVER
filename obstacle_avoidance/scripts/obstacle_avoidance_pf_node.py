@@ -13,6 +13,7 @@ import logging
 import os
 from log_debug import *
 
+#Starting adding variables to the launch
 
 class ObstacleAvoidance:
     def __init__(self):
