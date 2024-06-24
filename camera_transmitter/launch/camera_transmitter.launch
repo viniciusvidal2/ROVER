@@ -2,7 +2,7 @@
 
   <arg name="width" default="1920"/>
   <arg name="height" default="1080"/>
-  <arg name="fps" default="10"/>
+  <arg name="fps" default="5"/>
 
   <!-- The node to control the camera transmission -->
   <node pkg="camera_transmitter" type="camera_transmitter_node.py" name="camera_transmitter_node" output="screen">
