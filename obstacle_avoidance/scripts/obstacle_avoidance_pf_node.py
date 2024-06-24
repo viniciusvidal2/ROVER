@@ -361,7 +361,7 @@ class ObstacleAvoidance:
                 callback_time_msg = Float64()
                 callback_time_msg.data = callback_time
                 self.callback_time_pub.publish(callback_time_msg)
-                rospy.loginfo(f"Callback time: {1000*callback_time}")
+                rospy.loginfo(f"Callback time: {callback_time}")
 
         elif avoiding:
             if self.debug_mode:
