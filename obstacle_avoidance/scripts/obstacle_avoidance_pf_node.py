@@ -58,10 +58,12 @@ class ObstacleAvoidance:
             )
 
         # Subscribers to mavros and laserscan messages
-        rospy.Subscriber("/livox/scan", LaserScan, self.laserScanCallback, queue_size=1)
+        rospy.Subscriber("/livox/scan", LaserScan,
+                         self.laserScanCallback, queue_size=1)
         rospy.Subscriber("/mavros/setpoint_raw/target_global",
                          GlobalPositionTarget, self.targetPointCallback, queue_size=1)
-        rospy.Subscriber("/mavros/state", State, self.stateCallback, queue_size=1)
+        rospy.Subscriber("/mavros/state", State,
+                         self.stateCallback, queue_size=1)
         rospy.Subscriber("/mavros/global_position/global",
                          NavSatFix, self.gpsCallback, queue_size=1)
         rospy.Subscriber("/mavros/global_position/compass_hdg",
@@ -80,6 +82,8 @@ class ObstacleAvoidance:
             '/obstacle_avoidance/goal_guided_point', MarkerArray, queue_size=1)
         self.forces_pub = rospy.Publisher(
             '/obstacle_avoidance/forces', MarkerArray, queue_size=1)
+        self.callback_time_pub = rospy.Publisher(
+            '/obstacle_avoidance/callback_time', Float64, queue_size=1)
 
         rospy.loginfo("Obstacle avoidance node initialized.")
         logging.info("Obstacle avoidance node initialized.")
@@ -270,11 +274,13 @@ class ObstacleAvoidance:
             return
 
         # Make sure the scan values are valid before doing any math
+        start_ranges_set_time = time()
         valid_ranges = np.array(scan.ranges)
         valid_ranges[valid_ranges == 0] = 1e6
         closest_obstacle_distance_index = np.argmin(valid_ranges)
         closest_obstacle_distance = valid_ranges[closest_obstacle_distance_index]
-
+        rospy.loginfo(
+            f"ranges set time: {1000*(time() - start_ranges_set_time)} ms")
         # If any point is close enough, process the avoidance behavior
         if closest_obstacle_distance < self.max_obstacle_distance:
             if self.debug_mode:
@@ -282,9 +288,12 @@ class ObstacleAvoidance:
                     f"Obstacle detected in less than {self.max_obstacle_distance}m!")
 
             # Start avoiding and set the GUIDED mode to send commands
+            start_mode_change_time = time()
             avoiding = True
             if self.current_state.mode == "AUTO":
                 self.setFlightMode("GUIDED")
+            rospy.loginfo(
+                f"mode change time: {1000*(time() - start_mode_change_time)} ms")
 
             # Lets only proceed if there is enough time since we last sent a guided point to the vehicle
             if time() - self.last_guided_point_time < self.guided_point_sending_interval:
@@ -294,11 +303,14 @@ class ObstacleAvoidance:
             # In case there is next point in the mission that we can use as goal, we can calculate the avoidance
             if self.original_target:
                 # Grab the goal direction in baselink frame
+                convertion_w2bl = time()
                 goal_baselink_frame = self.worldToBaselink(
                     target_lat=self.original_target.latitude, target_lon=self.original_target.longitude)
                 # Isolate the readings that return the obstacles - obstacles are in pairs of (range, angle) in baselink frame
                 obstacles_baselink_frame = [[r, i * scan.angle_increment - scan.angle_min]
                                             for i, r in enumerate(valid_ranges) if r < self.max_obstacle_distance]
+                rospy.loginfo(
+                    f"convertion from world to baselink time: {1000*(time() - convertion_w2bl)} ms")
                 if self.debug_mode:
                     obstacles_baselink_frame_xy = [self.laserScanToXY(
                         range=r, angle=a) for r, a in obstacles_baselink_frame]
@@ -306,10 +318,14 @@ class ObstacleAvoidance:
                         createObstaclesDebugMarkerArray(obstacles_baselink_frame_xy))
 
                 # Calculate total force in baselink frame
+                time_calculate_forces = time()
                 total_force_baselink_frame = self.calculateForces(
                     obstacles_baselink_frame=obstacles_baselink_frame, goal_direction_baselink_frame=goal_baselink_frame)
+                rospy.loginfo(
+                    f"forces calculation time: {1000*(time() - time_calculate_forces)} ms")
 
                 # Create the new guided point in baselink frame based on the total force direction
+                convertion_bl2world = time()
                 guided_point_distance = np.max(
                     [closest_obstacle_distance, self.min_guided_point_distance])
                 guided_point_baselink_frame = guided_point_distance * \
@@ -318,6 +334,8 @@ class ObstacleAvoidance:
                 # Convert the travel point to world frame
                 guided_point_world_frame_lat, guided_point_world_frame_lon = self.baselinkToWorld(
                     x_baselink=guided_point_baselink_frame[0], y_baselink=guided_point_baselink_frame[1])
+                rospy.loginfo(
+                    f"convertion from baselink frame to world: {1000*(time() - convertion_bl2world)} ms")
 
                 # Send the new point to the vehicle
                 guided_point_world_frame_msg = GlobalPositionTarget()
@@ -336,6 +354,14 @@ class ObstacleAvoidance:
                                     self.baselinkToWorld(x_baselink, y_baselink) for x_baselink, y_baselink in obstacles_baselink_frame_xy], filename=os.path.join(self.debug_folder, f"debug_maps/map_scenario{getCurrentTimeAsString()}.png"))
                     self.logCallbackLoop(
                         obstacles_baselink_frame, goal_baselink_frame, guided_point_baselink_frame)
+
+                # Publish the callback time for monitoring
+                callback_time = (
+                    time() - self.last_input_scan_message_time)*1000  # [ms]
+                callback_time_msg = Float64()
+                callback_time_msg.data = callback_time
+                self.callback_time_pub.publish(callback_time_msg)
+                rospy.loginfo(f"Callback time: {1000*callback_time}")
 
         elif avoiding:
             if self.debug_mode:
