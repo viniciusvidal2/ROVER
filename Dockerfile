@@ -36,9 +36,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && pip install future \
     && pip install psutil \
     && pip install dronekit \
-    && pip install pyproj \
-    && pip install contextily \
-    && pip install datetime \
     && rm -rf /var/lib/apt/lists/*
 RUN catkin config --extend /opt/ros/noetic \
     && catkin init \
@@ -52,6 +49,10 @@ RUN catkin config --extend /opt/ros/noetic \
     && ./src/mavros/mavros/scripts/install_geographiclib_datasets.sh \
     && catkin build || true \
     && catkin build
+
+# Instal geographic dependencies
+ENV PATH=/usr/bin:$PATH
+RUN pip install pyproj datetime
 
 # Installing mavros and other dependencies
 RUN apt-get update \
@@ -104,6 +105,7 @@ RUN python3 setup.py install
 WORKDIR /home/rover/
 COPY livox_ros_driver2 /home/rover/src/livox_ros_driver2
 COPY mig_obstacle_avoidance /home/rover/src/mig_obstacle_avoidance
+COPY obstacle_avoidance /home/rover/src/obstacle_avoidance
 COPY camera_transmitter /home/rover/src/camera_transmitter
 COPY livox_filter_mig /home/rover/src/livox_filter_mig
 COPY dynamixel_controller /home/rover/src/dynamixel_controller

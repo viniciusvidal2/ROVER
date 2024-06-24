@@ -47,5 +47,4 @@
     <!-- Choosing which obstacle avoidance algorithm to run based on value -->
     <node pkg="obstacle_avoidance" type="obstacle_avoidance_pf_node.py" name="obstacle_avoidance_pf_node"/>
     
-
 </launch>
