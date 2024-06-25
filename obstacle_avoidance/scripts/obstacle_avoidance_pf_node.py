@@ -7,7 +7,7 @@ from std_msgs.msg import Float64
 from visualization_msgs.msg import MarkerArray
 import numpy as np
 from time import time
-from pyproj import Proj, transform
+import utm
 from scipy.spatial.transform import Rotation as R
 import logging
 import os
@@ -19,9 +19,7 @@ class ObstacleAvoidance:
         rospy.init_node("obstacle_avoidance_node", anonymous=False)
 
         # Our default projection pattern
-        self.wgs84 = Proj(init='epsg:4326')
         self.utm_zone = 23  # TODO: make this adjustable
-        self.utm_proj = Proj(proj='utm', zone=self.utm_zone, ellps='WGS84')
 
         # Variables
         self.current_yaw = 0.0  # [RAD]
@@ -121,12 +119,12 @@ class ObstacleAvoidance:
     ############################################################################
 
     def latLonToUtm(self, lat, lon):
-        utm_e, utm_n = transform(self.wgs84, self.utm_proj, lon, lat)
-
+        utm_e, utm_n, _, _ = utm.from_latlon(lat, lon)
+        
         return utm_e, utm_n
 
     def utmToLatLon(self, utm_e, utm_n):
-        lon, lat = transform(self.utm_proj, self.wgs84, utm_e, utm_n)
+        lon, lat = utm.to_latlon(utm_e, utm_n, self.utm_zone, northern=False)
 
         return lat, lon
 
