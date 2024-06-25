@@ -50,9 +50,6 @@ RUN catkin config --extend /opt/ros/noetic \
     && catkin build || true \
     && catkin build
 
-# Instal geographic dependencies
-RUN pip install pyproj datetime matplotlib scipy
-
 # Installing mavros and other dependencies
 RUN apt-get update \
     && apt-get install -y ros-noetic-mavros \
@@ -99,6 +96,9 @@ RUN cmake .. && make install
 COPY DynamixelSDK /home/rover/src/DynamixelSDK
 WORKDIR /home/rover/src/DynamixelSDK/python
 RUN python3 setup.py install
+
+# Instal geographic dependencies
+RUN pip install utm datetime scipy
 
 # Copy the packages to inside the docker and compile the ROS ones
 WORKDIR /home/rover/
