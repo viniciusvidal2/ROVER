@@ -327,6 +327,21 @@ class ObstacleAvoidance:
                                     repulsive_force=repulsive_force, total_force=attractive_force + repulsive_force))
 
         return attractive_force + repulsive_force
+    
+    def doShapesCollide(shape_vehicle, shape_obstacle):
+        pass
+
+    def createAngleTestSequence(goal_angle, angle_step, full_test_range):
+        pass
+
+    def calculateBestTrajectoryGuidedPoint(angle_tests):
+        pass
+
+    def calculateTrajectoryShapeBaselinkFrame(goal_distance, vehicle_side_length):
+        pass
+
+    def calculateObstaclesShapesBaselinkFrame(scan_readings):
+        pass
 
     ############################################################################
     # MAIN CONTROL LOOP CALLBACK
@@ -366,7 +381,7 @@ class ObstacleAvoidance:
                 return
             self.last_guided_point_time = time()
 
-            # In case there is target waypoint, we can calculate the avoidance
+            # In case there is a target waypoint, we can calculate the avoidance
             if self.current_target:
                 # Grab the goal direction in baselink frame
                 goal_baselink_frame = self.worldToBaselink(
@@ -374,22 +389,16 @@ class ObstacleAvoidance:
                 # Isolate the readings that return the obstacles - obstacles are in pairs of (range, angle) in baselink frame
                 obstacles_baselink_frame = [[r, i * scan.angle_increment - scan.angle_min]
                                             for i, r in enumerate(valid_ranges) if r < self.max_obstacle_distance]
+                obstacles_shapes_baselink_frame = self.calculateObstaclesShapesBaselinkFrame(obstacles_baselink_frame)
                 if self.debug_mode:
                     obstacles_baselink_frame_xy = [self.laserScanToXY(
                         range=r, angle=a) for r, a in obstacles_baselink_frame]
                     self.obstacles_pub.publish(
                         createObstaclesDebugMarkerArray(obstacles_baselink_frame_xy))
+                    
+                # Get the best trajectory from the shapes we are observing, starting from the goal point angle
+                self.calculateBestTrajectoryGuidedPoint
 
-                # Calculate total force in baselink frame
-                total_force_baselink_frame = self.calculateForces(
-                    obstacles_baselink_frame=obstacles_baselink_frame, goal_direction_baselink_frame=goal_baselink_frame)
-
-                # Create the new guided point in baselink frame based on the total force direction
-                guided_point_distance = np.max(
-                    [closest_obstacle_distance, self.min_guided_point_distance])
-                guided_point_baselink_frame = guided_point_distance * \
-                    total_force_baselink_frame / \
-                    np.linalg.norm(total_force_baselink_frame)
                 # Convert the travel point to world frame
                 guided_point_world_frame_lat, guided_point_world_frame_lon = self.baselinkToWorld(
                     x_baselink=guided_point_baselink_frame[0], y_baselink=guided_point_baselink_frame[1])
