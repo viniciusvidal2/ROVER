@@ -29,7 +29,7 @@ class ObstacleAvoidance:
         self.last_guided_point_time = time()
         self.guided_point_sending_interval = 0.5  # [s]
         self.current_state = State()  # vehicle driving mode
-        self.max_obstacle_distance = 10  # [m]
+        self.max_obstacle_distance = 1  # [m]
         self.K = 0.75  # potential fields repulsive force gain
         # the minimum distance a point we are using to avoid obstacles must have from current location [m]
         self.min_guided_point_distance = 3
