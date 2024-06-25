@@ -150,7 +150,7 @@ class ObstacleAvoidance:
         return utm_e, utm_n
 
     def utmToLatLon(self, utm_e, utm_n):
-        lon, lat = utm.to_latlon(utm_e, utm_n, self.utm_zone, northern=False)
+        lat, lon = utm.to_latlon(utm_e, utm_n, self.utm_zone, northern=False)
 
         return lat, lon
 
