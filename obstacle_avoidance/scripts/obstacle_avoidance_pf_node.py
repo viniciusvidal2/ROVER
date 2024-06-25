@@ -12,6 +12,7 @@ import logging
 import os
 from log_debug import *
 
+#Starting adding variables to the launch
 
 class ObstacleAvoidance:
     def __init__(self):
@@ -27,12 +28,13 @@ class ObstacleAvoidance:
         self.last_input_scan_message_time = time()
         # control the time when we last sent a guided point
         self.last_guided_point_time = time()
-        self.guided_point_sending_interval = 0.5  # [s]
+        self.guided_point_sending_interval = rospy.get_param('~sendingT', 0.5)  # [s]
         self.current_state = State()  # vehicle driving mode
-        self.max_obstacle_distance = 1  # [m]
-        self.K = 0.75  # potential fields repulsive force gain
+        self.original_mode = ""  # original mode name
+        self.max_obstacle_distance = rospy.get_param('~maxDist', 1)  # [m]
+        self.K = rospy.get_param('~k', 0.75)  # potential fields repulsive force gain
         # the minimum distance a point we are using to avoid obstacles must have from current location [m]
-        self.min_guided_point_distance = 3
+        self.min_guided_point_distance = rospy.get_param('~guidedDistance', 3)
         self.debug_mode = False  # debug mode to print more information
         self.home_waypoint = None  # home waypoint data, contains home lat and lon
         self.waypoints_list = None  # list of waypoints in the autonomous mission
