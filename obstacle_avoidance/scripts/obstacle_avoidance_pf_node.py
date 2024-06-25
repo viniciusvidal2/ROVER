@@ -198,12 +198,12 @@ class ObstacleAvoidance:
     ############################################################################
     def targetPointCallback(self, data):
         # If not auto mode or no mission is observed, we add the incoming data as our target
-        if not self.waypoints_list or self.current_state.mode == "GUIDED":
+        if not self.waypoints_list:
             self.current_target = data
             if self.debug_mode:
                 rospy.loginfo(
-                    f"Target point set to {self.current_target.latitude}, {self.current_target.longitude} in GUIDED mode.")
-        # IF we are in AUTO mode, we need to grab the next waypoint in the mission, if we do have a mission
+                    f"Target point set to {self.current_target.latitude}, {self.current_target.longitude}.")
+        # If we are in AUTO mode, we need to grab the next waypoint in the mission, if we do have a mission
         elif self.current_state.mode == "AUTO" and self.waypoints_list:
             for waypoint in self.waypoints_list:
                 if waypoint.is_current:
@@ -400,11 +400,6 @@ class ObstacleAvoidance:
                 guided_point_world_frame_msg.longitude = guided_point_world_frame_lon
                 guided_point_world_frame_msg.altitude = self.current_location.altitude
                 self.setpoint_pub.publish(guided_point_world_frame_msg)
-
-                # Set the current target to follow this new point as well
-                self.current_target.latitude = guided_point_world_frame_lat
-                self.current_target.longitude = guided_point_world_frame_lon
-                self.current_target.altitude = self.current_location.altitude
 
                 # Publish goal and target points for debug purposes
                 if self.debug_mode:
