@@ -49,7 +49,7 @@
     <include file="$(find dynamixel_controller)/launch/dynamixel_controller.launch"/>
 
     <!-- Choosing which obstacle avoidance algorithm to run based on value -->
-    <node pkg="obstacle_avoidance" type="obstacle_avoidance_pf_node.py" name="obstacle_avoidance_pf_node"/>
+    <node pkg="obstacle_avoidance" type="obstacle_avoidance_pf_node.py" name="obstacle_avoidance_pf_node">
         <param name="k" value="$(arg k)"/>
         <param name="sendingT" value="$(arg sendingT)"/>
         <param name="maxDist" value="$(arg maxDist)"/>
