@@ -19,9 +19,6 @@ class ObstacleAvoidance:
     def __init__(self):
         rospy.init_node("obstacle_avoidance_node", anonymous=False)
 
-        # Our default projection pattern
-        self.utm_zone = 23  # TODO: make this adjustable
-
         # User arguments
         self.guided_point_sending_interval = rospy.get_param(
             '~sendingT', 0.5)  # [s]
@@ -43,6 +40,8 @@ class ObstacleAvoidance:
         self.home_waypoint = None  # home waypoint data, contains home lat and lon
         self.waypoints_list = None  # list of waypoints in the autonomous mission
         self.current_target = None  # target waypoint data in AUTO mode
+        self.utm_zone_number = None  # UTM zone number
+        self.utm_zone_letter = None  # UTM zone letter
 
         # If the image and logging folders are not created, make sure we create it
         if self.debug_mode:
@@ -145,12 +144,14 @@ class ObstacleAvoidance:
     ############################################################################
 
     def latLonToUtm(self, lat, lon):
-        utm_e, utm_n, _, _ = utm.from_latlon(lat, lon)
+        utm_e, utm_n, self.utm_zone_number, self.utm_zone_letter = utm.from_latlon(
+            lat, lon)
 
         return utm_e, utm_n
 
     def utmToLatLon(self, utm_e, utm_n):
-        lat, lon = utm.to_latlon(utm_e, utm_n, self.utm_zone, northern=False)
+        lat, lon = utm.to_latlon(
+            utm_e, utm_n, self.utm_zone_number, self.utm_zone_letter)
 
         return lat, lon
 
@@ -251,6 +252,8 @@ class ObstacleAvoidance:
                     break
 
     def homePositionCallback(self, data):
+        # Convert the data to UTM just to store in the class our zone number and letter
+        _, _ = self.latLonToUtm(lat=data.geo.latitude, lon=data.geo.longitude)
         # Set the home point so we know what to do if we are returning to launch
         if not self.home_waypoint:
             self.home_waypoint = data
@@ -341,7 +344,8 @@ class ObstacleAvoidance:
         self.last_input_scan_message_time = time()
 
         # Avoiding the callback if the conditions are not met
-        if not scan.ranges or self.current_state.mode == "MANUAL" or not self.current_target or not self.current_location:
+        if not scan.ranges or self.current_state.mode == "MANUAL" or not self.current_target \
+                or not self.current_location or not self.utm_zone_letter or not self.utm_zone_number:
             return
 
         # Make sure the scan values are valid before doing any math
