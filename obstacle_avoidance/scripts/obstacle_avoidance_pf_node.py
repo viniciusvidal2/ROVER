@@ -22,22 +22,23 @@ class ObstacleAvoidance:
         # Our default projection pattern
         self.utm_zone = 23  # TODO: make this adjustable
 
+        # User arguments
+        self.guided_point_sending_interval = rospy.get_param(
+            '~sendingT', 0.5)  # [s]
+        self.max_obstacle_distance = rospy.get_param('~maxDist', 1)  # [m]
+        # The minimum distance a point we are using to avoid obstacles must have from current location [m]
+        self.min_guided_point_distance = rospy.get_param('~guidedDistance', 3)
+        # Potential fields repulsive force gain
+        self.K = rospy.get_param('~k', 0.75)
+
+        # Control the node execution incoming messages
+        self.last_input_scan_message_time = time()
+        # Control the time when we last sent a guided point
+        self.last_guided_point_time = time()
         # Variables
         self.current_yaw = 0.0  # [RAD]
         self.current_location = None  # GPS data
-        # control the node execution incoming messages
-        self.last_input_scan_message_time = time()
-        # control the time when we last sent a guided point
-        self.last_guided_point_time = time()
-        self.guided_point_sending_interval = rospy.get_param(
-            '~sendingT', 0.5)  # [s]
         self.current_state = State()  # vehicle driving mode
-        self.original_mode = ""  # original mode name
-        self.max_obstacle_distance = rospy.get_param('~maxDist', 1)  # [m]
-        # potential fields repulsive force gain
-        self.K = rospy.get_param('~k', 0.75)
-        # the minimum distance a point we are using to avoid obstacles must have from current location [m]
-        self.min_guided_point_distance = rospy.get_param('~guidedDistance', 3)
         self.debug_mode = True  # debug mode to print more information
         self.home_waypoint = None  # home waypoint data, contains home lat and lon
         self.waypoints_list = None  # list of waypoints in the autonomous mission
@@ -88,8 +89,6 @@ class ObstacleAvoidance:
             '/obstacle_avoidance/goal_guided_point', MarkerArray, queue_size=1)
         self.forces_pub = rospy.Publisher(
             '/obstacle_avoidance/forces', MarkerArray, queue_size=1)
-        self.callback_time_pub = rospy.Publisher(
-            '/obstacle_avoidance/callback_time', Float64, queue_size=1)
 
         # Services
         rospy.wait_for_service('/mavros/set_mode')
@@ -109,7 +108,7 @@ class ObstacleAvoidance:
         logging.debug(f"Current state: {self.current_state.mode}")
         logging.debug(
             f"Current location: lat {self.current_location.latitude} lon {self.current_location.longitude}")
-        logging.debug(f"Current yaw: {self.current_yaw} degrees")
+        logging.debug(f"Current yaw: {self.current_yaw*180.0/np.pi} degrees")
         logging.debug(
             f"Original target: lat {self.current_target.latitude} lon {self.current_target.longitude}")
         logging.debug(
@@ -125,7 +124,7 @@ class ObstacleAvoidance:
         rospy.loginfo(f"Current state: {self.current_state.mode}")
         rospy.loginfo(
             f"Current location: lat {self.current_location.latitude} lon {self.current_location.longitude}")
-        rospy.loginfo(f"Current yaw: {self.current_yaw} degrees")
+        rospy.loginfo(f"Current yaw: {self.current_yaw*180.0/np.pi} degrees")
         rospy.loginfo(
             f"Original target: lat {self.current_target.latitude} lon {self.current_target.longitude}")
         rospy.loginfo(
@@ -400,6 +399,11 @@ class ObstacleAvoidance:
                 guided_point_world_frame_msg.altitude = self.current_location.altitude
                 self.setpoint_pub.publish(guided_point_world_frame_msg)
 
+                # Set the current target to follow this new point as well
+                self.current_target.latitude = guided_point_world_frame_lat
+                self.current_target.longitude = guided_point_world_frame_lon
+                self.current_target.altitude = self.current_location.altitude
+
                 # Publish goal and target points for debug purposes
                 if self.debug_mode:
                     self.goal_guided_point_pub.publish(createGoalGuidedPointDebugMarkerArray(
@@ -408,14 +412,6 @@ class ObstacleAvoidance:
                 if self.debug_mode:
                     self.logCallbackLoop(
                         obstacles_baselink_frame, goal_baselink_frame, guided_point_baselink_frame)
-
-                # Publish the callback time for monitoring
-                callback_time = (
-                    time() - self.last_input_scan_message_time)*1000  # [ms]
-                callback_time_msg = Float64()
-                callback_time_msg.data = callback_time
-                self.callback_time_pub.publish(callback_time_msg)
-                rospy.loginfo(f"Callback time: {callback_time}")
 
         elif self.current_state.mode == "GUIDED":
             if self.debug_mode:
