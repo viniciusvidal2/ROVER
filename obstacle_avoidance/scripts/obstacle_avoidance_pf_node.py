@@ -12,7 +12,8 @@ import logging
 import os
 from log_debug import *
 
-#Starting adding variables to the launch
+# Starting adding variables to the launch
+
 
 class ObstacleAvoidance:
     def __init__(self):
@@ -28,14 +29,16 @@ class ObstacleAvoidance:
         self.last_input_scan_message_time = time()
         # control the time when we last sent a guided point
         self.last_guided_point_time = time()
-        self.guided_point_sending_interval = rospy.get_param('~sendingT', 0.5)  # [s]
+        self.guided_point_sending_interval = rospy.get_param(
+            '~sendingT', 0.5)  # [s]
         self.current_state = State()  # vehicle driving mode
         self.original_mode = ""  # original mode name
         self.max_obstacle_distance = rospy.get_param('~maxDist', 1)  # [m]
-        self.K = rospy.get_param('~k', 0.75)  # potential fields repulsive force gain
+        # potential fields repulsive force gain
+        self.K = rospy.get_param('~k', 0.75)
         # the minimum distance a point we are using to avoid obstacles must have from current location [m]
         self.min_guided_point_distance = rospy.get_param('~guidedDistance', 3)
-        self.debug_mode = False  # debug mode to print more information
+        self.debug_mode = True  # debug mode to print more information
         self.home_waypoint = None  # home waypoint data, contains home lat and lon
         self.waypoints_list = None  # list of waypoints in the autonomous mission
         self.current_target = None  # target waypoint data in AUTO mode
@@ -101,6 +104,7 @@ class ObstacleAvoidance:
     ############################################################################
 
     def logCallbackLoop(self, obstacles_baselink_frame, goal_baselink_frame, guided_point_baselink_frame):
+        # Log file
         logging.debug(f"Information for this loop: {time()}")
         logging.debug(f"Current state: {self.current_state.mode}")
         logging.debug(
@@ -114,6 +118,28 @@ class ObstacleAvoidance:
             f"Guided point in baselink frame: {guided_point_baselink_frame}")
         for i, obstacle in enumerate(obstacles_baselink_frame):
             logging.debug(f"Obstacle {i} in baselink frame: {obstacle}")
+        # Printing
+        rospy.loginfo(
+            "=================================================================")
+        rospy.loginfo(f"Information for this loop: {time()}")
+        rospy.loginfo(f"Current state: {self.current_state.mode}")
+        rospy.loginfo(
+            f"Current location: lat {self.current_location.latitude} lon {self.current_location.longitude}")
+        rospy.loginfo(f"Current yaw: {self.current_yaw} degrees")
+        rospy.loginfo(
+            f"Original target: lat {self.current_target.latitude} lon {self.current_target.longitude}")
+        rospy.loginfo(
+            f"Goal direction in baselink frame: {goal_baselink_frame}")
+        rospy.loginfo(
+            f"Guided point in baselink frame: {guided_point_baselink_frame}")
+        x_target_baselink, y_target_baselink = self.worldToBaselink(
+            target_lat=self.current_target.latitude, target_lon=self.current_target.longitude)
+        rospy.loginfo(
+            f"Target point heard from board in baselink frame: {x_target_baselink} x, {y_target_baselink} y")
+        for i, obstacle in enumerate(obstacles_baselink_frame):
+            rospy.loginfo(f"Obstacle {i} in baselink frame: {obstacle}")
+        rospy.loginfo(
+            "=================================================================")
 
     ############################################################################
     # FRAME CONVERTION METHODS
@@ -121,7 +147,7 @@ class ObstacleAvoidance:
 
     def latLonToUtm(self, lat, lon):
         utm_e, utm_n, _, _ = utm.from_latlon(lat, lon)
-        
+
         return utm_e, utm_n
 
     def utmToLatLon(self, utm_e, utm_n):
@@ -143,7 +169,7 @@ class ObstacleAvoidance:
         world_angle_baselink = np.pi/2 - self.current_yaw
         ca = np.cos(world_angle_baselink)
         sa = np.sin(world_angle_baselink)
-        world_R_baselink = np.array([[ca, -sa],[sa, ca]])
+        world_R_baselink = np.array([[ca, -sa], [sa, ca]])
         d_utm = world_R_baselink @ np.array([x_baselink, y_baselink])
         # Add to the current location in UTM
         utm_output = np.array([utm_east, utm_north]) + d_utm
@@ -179,16 +205,24 @@ class ObstacleAvoidance:
             if self.debug_mode:
                 rospy.loginfo(
                     f"Target point set to {self.current_target.latitude}, {self.current_target.longitude} in GUIDED mode.")
-            return
         # IF we are in AUTO mode, we need to grab the next waypoint in the mission, if we do have a mission
-        if self.current_state.mode == "AUTO" and self.waypoints_list:
+        elif self.current_state.mode == "AUTO" and self.waypoints_list:
             for waypoint in self.waypoints_list:
                 if waypoint.is_current:
                     self.current_target = GlobalPositionTarget()
                     self.current_target.latitude = waypoint.x_lat
                     self.current_target.longitude = waypoint.y_long
                     self.current_target.altitude = waypoint.z_alt
-                    return
+                    if self.debug_mode:
+                        rospy.loginfo(
+                            f"Target point set to {self.current_target.latitude}, {self.current_target.longitude} in AUTO mode.")
+        if self.debug_mode:
+            x_target_baselink, y_target_baselink = self.worldToBaselink(
+                target_lat=self.current_target.latitude, target_lon=self.current_target.longitude)
+            rospy.logwarn(
+                f"Target in baselink frame: {x_target_baselink} x, {y_target_baselink} y.")
+            rospy.loginfo(
+                f"This is the current state: {self.current_state.mode}")
 
     def stateCallback(self, state):
         self.current_state = state
