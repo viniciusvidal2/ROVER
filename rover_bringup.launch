@@ -12,10 +12,10 @@
     <arg name="log_output" default="log"/>
     <arg name="fcu_protocol" default="v2.0"/>
     <arg name="respawn_mavros" default="false"/>
-    <arg name="k" default="0.75"/>
-    <arg name="sendingT" default="0.5"/>
-    <arg name="maxDist" default="1"/>
-    <arg name="guidedDistance" default="3"/>
+    <arg name="k" default="0.58"/>
+    <arg name="sendingT" default="2"/>
+    <arg name="maxDist" default="3"/>
+    <arg name="guidedDistance" default="30"/>
 
     <!-- Simple transforms to adjust sonar and lidar frames -->
     <!-- <node pkg="tf" type="static_transform_publisher" name="stf0" args="0 0 0 0 0 0 1 livox_frame base_link 100" />  -->
