@@ -36,7 +36,7 @@ class ObstacleAvoidance:
         self.guided_point_sending_interval = rospy.get_param('~sendingT', 0.5)  # [s]
         self.current_state = State()  # vehicle driving mode
         self.original_mode = ""  # original mode name
-        self.max_obstacle_distance = rospy.get_param('~maxDist', 10)  # [m]
+        self.max_obstacle_distance = rospy.get_param('~maxDist', 1)  # [m]
         self.K = rospy.get_param('~k', 0.75)  # potential fields repulsive force gain
         # the minimum distance a point we are using to avoid obstacles must have from current location [m]
         self.min_guided_point_distance = rospy.get_param('~guidedDistance', 3)
