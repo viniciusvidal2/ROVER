@@ -2,9 +2,6 @@
 import rospy
 from geometry_msgs.msg import Point
 from visualization_msgs.msg import Marker, MarkerArray
-import numpy as np
-# import contextily as ctx
-import matplotlib.pyplot as plt
 from time import time
 import datetime
 
@@ -172,57 +169,3 @@ def createForcesDebugMarkerArray(attraction_force, repulsive_force, total_force)
     marker_array.markers.append(marker)
 
     return marker_array
-
-
-def plotPointsOnMap(goal, guided_point, obstacles, filename):
-    """
-    Plots a goal, a guided point, and a list of obstacles on a map with a high zoom level.
-
-    Parameters:
-    goal (numpy.ndarray): The goal point (latitude, longitude).
-    guided_point (numpy.ndarray): The guided point (latitude, longitude).
-    obstacles (list of numpy.ndarray): A list of obstacle points (latitude, longitude).
-    filename (str): The name of the file to save the plotted map as a PNG image.
-    """
-    pass
-    # # Create a figure and axis
-    # _, ax = plt.subplots(figsize=(10, 10))
-
-    # # Plot the points on the map
-    # ax.scatter(goal[1], goal[0], c='green', s=100, label='Goal')
-    # ax.scatter(guided_point[1], guided_point[0],
-    #            c='blue', s=100, label='Guided Point')
-
-    # # Convert the list of points to a numpy array for easier indexing
-    # obstacles_array = np.array(obstacles)
-    # ax.scatter(obstacles_array[:, 1], obstacles_array[:,
-    #            0], c='red', s=50, label='Obstacles')
-
-    # # Define the zoom level
-    # zoom_radius = 100 / 111320
-    # min_lat = min(goal[0], guided_point[0], *
-    #               obstacles_array[:, 0]) - zoom_radius
-    # max_lat = max(goal[0], guided_point[0], *
-    #               obstacles_array[:, 0]) + zoom_radius
-    # min_lon = min(goal[1], guided_point[1], *
-    #               obstacles_array[:, 1]) - zoom_radius
-    # max_lon = max(goal[1], guided_point[1], *
-    #               obstacles_array[:, 1]) + zoom_radius
-
-    # # Set the map limits to zoom into the area
-    # ax.set_xlim(min_lon, max_lon)
-    # ax.set_ylim(min_lat, max_lat)
-
-    # # Add basemap from contextily
-    # ctx.add_basemap(ax, crs='EPSG:4326', source=ctx.providers.OpenStreetMap.Mapnik)
-
-    # # Add a legend
-    # ax.legend()
-
-    # # Set labels
-    # ax.set_xlabel('Longitude')
-    # ax.set_ylabel('Latitude')
-
-    # # Save the plot as a PNG file
-    # plt.savefig(filename, dpi=300, bbox_inches='tight')
-    # plt.close()
