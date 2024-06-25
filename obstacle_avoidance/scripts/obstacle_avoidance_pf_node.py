@@ -8,7 +8,6 @@ from visualization_msgs.msg import MarkerArray
 import numpy as np
 from time import time
 import utm
-from scipy.spatial.transform import Rotation as R
 import logging
 import os
 from log_debug import *
@@ -140,10 +139,12 @@ class ObstacleAvoidance:
             lat=self.current_location.latitude, lon=self.current_location.longitude)
         # Create rotation from baselink to world based on the current yaw and apply
         world_angle_baselink = np.pi/2 - self.current_yaw
-        world_R_baselink = R.from_euler('z', world_angle_baselink)
-        d_utm = world_R_baselink.apply(np.array([x_baselink, y_baselink, 0]))
+        ca = np.cos(world_angle_baselink)
+        sa = np.sin(world_angle_baselink)
+        world_R_baselink = np.array([[ca, -sa],[sa, ca]])
+        d_utm = world_R_baselink @ np.array([x_baselink, y_baselink])
         # Add to the current location in UTM
-        utm_output = np.array([utm_east, utm_north, 0]) + d_utm
+        utm_output = np.array([utm_east, utm_north]) + d_utm
 
         return self.utmToLatLon(utm_e=utm_output[0], utm_n=utm_output[1])
 
@@ -155,12 +156,14 @@ class ObstacleAvoidance:
         utm_target_east, utm_target_north = self.latLonToUtm(
             lat=target_lat, lon=target_lon)
         # Calculate the offset from the current location to the target location in UTM frame
-        d_utm = np.array([utm_target_east, utm_target_north, 0]
-                         ) - np.array([utm_east, utm_north, 0])
+        d_utm = np.array([utm_target_east, utm_target_north]
+                         ) - np.array([utm_east, utm_north])
         # Create rotation from world to baselink based on the current yaw and apply
         baselink_angle_world = self.current_yaw - np.pi/2
-        baselink_R_world = R.from_euler('z', baselink_angle_world)
-        target_baselink_frame = baselink_R_world.apply(d_utm)
+        ca = np.cos(baselink_angle_world)
+        sa = np.sin(baselink_angle_world)
+        baselink_R_world = np.array([[ca, -sa], [sa, ca]])
+        target_baselink_frame = baselink_R_world @ d_utm
 
         return target_baselink_frame[0], target_baselink_frame[1]
 

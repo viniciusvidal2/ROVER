@@ -60,8 +60,8 @@ def createGoalGuidedPointDebugMarkerArray(goal, guided_point):
     marker.pose.orientation.y = 0.0
     marker.pose.orientation.z = 0.0
     marker.pose.orientation.w = 1.0
-    marker.scale.x = 0.5
-    marker.scale.y = 0.5
+    marker.scale.x = 0.7
+    marker.scale.y = 0.9
     marker.scale.z = 1.0
     marker.color.a = 1.0
     marker.color.r = 0.0
