@@ -174,7 +174,7 @@ class ObstacleAvoidance:
     ############################################################################
     def targetPointCallback(self, data):
         # If not auto mode or no mission is observed, we add the incoming data as our target
-        if not self.waypoints_list:
+        if not self.waypoints_list or self.current_state.mode == "GUIDED":
             self.current_target = data
             if self.debug_mode:
                 rospy.loginfo(
@@ -334,14 +334,11 @@ class ObstacleAvoidance:
             # In case there is target waypoint, we can calculate the avoidance
             if self.current_target:
                 # Grab the goal direction in baselink frame
-                convertion_w2bl = time()
                 goal_baselink_frame = self.worldToBaselink(
                     target_lat=self.current_target.latitude, target_lon=self.current_target.longitude)
                 # Isolate the readings that return the obstacles - obstacles are in pairs of (range, angle) in baselink frame
                 obstacles_baselink_frame = [[r, i * scan.angle_increment - scan.angle_min]
                                             for i, r in enumerate(valid_ranges) if r < self.max_obstacle_distance]
-                rospy.loginfo(
-                    f"convertion from world to baselink time: {1000*(time() - convertion_w2bl)} ms")
                 if self.debug_mode:
                     obstacles_baselink_frame_xy = [self.laserScanToXY(
                         range=r, angle=a) for r, a in obstacles_baselink_frame]
@@ -353,7 +350,6 @@ class ObstacleAvoidance:
                     obstacles_baselink_frame=obstacles_baselink_frame, goal_direction_baselink_frame=goal_baselink_frame)
 
                 # Create the new guided point in baselink frame based on the total force direction
-                convertion_bl2world = time()
                 guided_point_distance = np.max(
                     [closest_obstacle_distance, self.min_guided_point_distance])
                 guided_point_baselink_frame = guided_point_distance * \
@@ -362,8 +358,6 @@ class ObstacleAvoidance:
                 # Convert the travel point to world frame
                 guided_point_world_frame_lat, guided_point_world_frame_lon = self.baselinkToWorld(
                     x_baselink=guided_point_baselink_frame[0], y_baselink=guided_point_baselink_frame[1])
-                rospy.loginfo(
-                    f"convertion from baselink frame to world: {1000*(time() - convertion_bl2world)} ms")
 
                 # Send the new point to the vehicle
                 guided_point_world_frame_msg = GlobalPositionTarget()
