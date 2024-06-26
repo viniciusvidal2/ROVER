@@ -31,7 +31,7 @@ class ObstacleAvoidance:
         self.current_yaw = 0.0  # [RAD]
         self.current_location = None  # GPS data
         self.current_state = State()  # vehicle driving mode
-        self.debug_mode = False  # debug mode to print more information
+        self.debug_mode = True  # debug mode to print more information
         self.home_waypoint = None  # home waypoint data, contains home lat and lon
         self.waypoints_list = None  # list of waypoints in the autonomous mission
         self.current_target = None  # target waypoint data in AUTO mode
@@ -131,6 +131,10 @@ class ObstacleAvoidance:
             f"Target point heard from board in baselink frame: {x_target_baselink} x, {y_target_baselink} y")
         for i, obstacle in enumerate(obstacles_baselink_frame):
             rospy.loginfo(f"Obstacle {i} in baselink frame: {obstacle}")
+        rospy.loginfo("Waypoints in baselink frame:")
+        for i, waypoint in enumerate(self.waypoints_list):
+            rospy.loginfo(
+                f"Waypoint {i} in baselink frame: {self.worldToBaselink(target_lat=waypoint.x_lat, target_lon=waypoint.y_long)}")
         rospy.loginfo(
             "=================================================================")
 
@@ -194,14 +198,8 @@ class ObstacleAvoidance:
     # SENSOR CALLBACKS
     ############################################################################
     def targetPointCallback(self, data):
-        # If not auto mode or no mission is observed, we add the incoming data as our target
-        if not self.waypoints_list:
-            self.current_target = data
-            if self.debug_mode:
-                rospy.loginfo(
-                    f"Target point set to {self.current_target.latitude}, {self.current_target.longitude}.")
         # If we are in AUTO mode, we need to grab the next waypoint in the mission, if we do have a mission
-        elif self.current_state.mode == "AUTO" and self.waypoints_list:
+        if self.waypoints_list:
             for waypoint in self.waypoints_list:
                 if waypoint.is_current:
                     self.current_target = GlobalPositionTarget()
@@ -210,7 +208,7 @@ class ObstacleAvoidance:
                     self.current_target.altitude = waypoint.z_alt
                     if self.debug_mode:
                         rospy.loginfo(
-                            f"Target point set to {self.current_target.latitude}, {self.current_target.longitude} in AUTO mode.")
+                            f"Target point set to {self.current_target.latitude}, {self.current_target.longitude}.")
         if self.debug_mode:
             x_target_baselink, y_target_baselink = self.worldToBaselink(
                 target_lat=self.current_target.latitude, target_lon=self.current_target.longitude)
@@ -252,13 +250,12 @@ class ObstacleAvoidance:
         # Set the home point so we know what to do if we are returning to launch
         if not self.home_waypoint:
             self.home_waypoint = data
-            rospy.loginfo(
-                f"Home waypoint set to {self.home_waypoint.geo.latitude}, {self.home_waypoint.geo.longitude}")
         else:
             if self.home_waypoint.geo.latitude != data.geo.latitude or self.home_waypoint.geo.longitude != data.geo.longitude:
                 self.home_waypoint = data
-                rospy.loginfo(
-                    f"Home waypoint set to {self.home_waypoint.geo.latitude}, {self.home_waypoint.geo.longitude}")
+        if self.debug_mode and self.home_waypoint:
+            rospy.loginfo(
+                f"Home waypoint set to {self.home_waypoint.geo.latitude}, {self.home_waypoint.geo.longitude}")
 
     def travelStateCheckCallback(self, event):
         # Check if we are some time with no input data, and if so get back to AUTO mode mission
@@ -304,10 +301,10 @@ class ObstacleAvoidance:
         # Lets have a list of angles to test, starting from the goal angle and going in both directions
         # in a breadth first search manner
         angles = list()  # [RAD]
-        angles.append(np.pi/180*goal_angle)
+        angles.append(np.radians(goal_angle))
         for i in range(angle_step, full_test_range, angle_step):
-            angles.append(np.pi/180*(goal_angle + i))
-            angles.append(np.pi/180*(goal_angle - i))
+            angles.append(np.radians(goal_angle + i))
+            angles.append(np.radians(goal_angle - i))
 
         return angles
 
