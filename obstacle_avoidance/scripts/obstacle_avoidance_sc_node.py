@@ -11,6 +11,7 @@ import utm
 import logging
 import os
 from log_debug import *
+from collision_lib import *
 
 
 class ObstacleAvoidance:
@@ -21,10 +22,6 @@ class ObstacleAvoidance:
         self.guided_point_sending_interval = rospy.get_param(
             '~sendingT', 2)  # [s]
         self.max_obstacle_distance = rospy.get_param('~maxDist', 3)  # [m]
-        # The minimum distance a point we are using to avoid obstacles must have from current location [m]
-        self.min_guided_point_distance = rospy.get_param('~guidedDistance', 30)
-        # Potential fields repulsive force gain
-        self.K = rospy.get_param('~k', 0.58)
 
         # Control the node execution incoming messages
         self.last_input_scan_message_time = time()
@@ -34,18 +31,18 @@ class ObstacleAvoidance:
         self.current_yaw = 0.0  # [RAD]
         self.current_location = None  # GPS data
         self.current_state = State()  # vehicle driving mode
-        self.debug_mode = True  # debug mode to print more information
+        self.debug_mode = False  # debug mode to print more information
         self.home_waypoint = None  # home waypoint data, contains home lat and lon
         self.waypoints_list = None  # list of waypoints in the autonomous mission
         self.current_target = None  # target waypoint data in AUTO mode
         self.utm_zone_number = None  # UTM zone number
         self.utm_zone_letter = None  # UTM zone letter
+        self.vehicle_width = 0.4  # [m]
 
         # If the image and logging folders are not created, make sure we create it
         if self.debug_mode:
-            self.debug_folder = "/home/rover/src/obstacle_avoidance/debug"
-            if not os.path.exists(os.path.join(self.debug_folder, "debug_maps")):
-                os.makedirs(os.path.join(self.debug_folder, "debug_maps"))
+            self.debug_folder = os.path.join(
+                os.getenv("HOME"), "obstacle_avoidance_debug")
             if not os.path.exists(os.path.join(self.debug_folder, "logs")):
                 os.makedirs(os.path.join(self.debug_folder, "logs"))
             # Logging setup
@@ -84,8 +81,8 @@ class ObstacleAvoidance:
             '/obstacle_avoidance/obstacles', MarkerArray, queue_size=1)
         self.goal_guided_point_pub = rospy.Publisher(
             '/obstacle_avoidance/goal_guided_point', MarkerArray, queue_size=1)
-        self.forces_pub = rospy.Publisher(
-            '/obstacle_avoidance/forces', MarkerArray, queue_size=1)
+        self.robot_path_area_pub = rospy.Publisher(
+            '/obstacle_avoidance/robot_path_area', Marker, queue_size=1)
 
         # Services
         rospy.wait_for_service('/mavros/set_mode')
@@ -198,12 +195,12 @@ class ObstacleAvoidance:
     ############################################################################
     def targetPointCallback(self, data):
         # If not auto mode or no mission is observed, we add the incoming data as our target
-        if not self.waypoints_list or self.current_state.mode == "GUIDED":
+        if not self.waypoints_list:
             self.current_target = data
             if self.debug_mode:
                 rospy.loginfo(
-                    f"Target point set to {self.current_target.latitude}, {self.current_target.longitude} in GUIDED mode.")
-        # IF we are in AUTO mode, we need to grab the next waypoint in the mission, if we do have a mission
+                    f"Target point set to {self.current_target.latitude}, {self.current_target.longitude}.")
+        # If we are in AUTO mode, we need to grab the next waypoint in the mission, if we do have a mission
         elif self.current_state.mode == "AUTO" and self.waypoints_list:
             for waypoint in self.waypoints_list:
                 if waypoint.is_current:
@@ -303,45 +300,41 @@ class ObstacleAvoidance:
                 rospy.logerr(
                     f"Failed to resume original state, setting MANUAL mode: {e}")
 
-    def calculateForces(self, obstacles_baselink_frame, goal_direction_baselink_frame):
-        # We have a normalized repulsive force
-        attractive_force = np.array(
-            goal_direction_baselink_frame)/np.linalg.norm(goal_direction_baselink_frame)
-        # Each obstacle is a combination of ditance and angle (in radians), and adds some importance to repulsive force
-        # The repulsive force must have the opposite direction of the angle unit vector itself from the vehicle to the obstacle
-        repulsive_force = np.array([0.0, 0.0])
-        for obstacle_distance, angle in obstacles_baselink_frame:
-            # avoid zero distance
-            obstacle_distance = min(obstacle_distance, 0.1)
-            repulsion_strength = (1 / obstacle_distance)**2
-            repulsive_force -= repulsion_strength * \
-                np.array([np.cos(angle), np.sin(angle)])
-        # Normalize and apply a gain to the the repulsive force
-        if np.linalg.norm(repulsive_force) > 0:
-            repulsive_force = self.K * repulsive_force / \
-                np.linalg.norm(repulsive_force)
+    def createAngleTestSequence(self, goal_angle, angle_step, full_test_range):
+        # Lets have a list of angles to test, starting from the goal angle and going in both directions
+        # in a breadth first search manner
+        angles = list()  # [RAD]
+        angles.append(np.pi/180*goal_angle)
+        for i in range(angle_step, full_test_range, angle_step):
+            angles.append(np.pi/180*(goal_angle + i))
+            angles.append(np.pi/180*(goal_angle - i))
 
-        # Publish the forces for debug purposes
+        return angles
+
+    def calculateBestTrajectoryGuidedPoint(self, angle_tests, goal_distance, obstacles_baselink_frame_xy):
+        # Check if the path is clear for each angle, and return the first one that is clear
+        path_found = False
+        chosen_angle = angle_tests[0]
+        for angle in angle_tests:
+            if testPointsInRotatedRectangle(obstacles_baselink_frame_xy, length=goal_distance, width=self.vehicle_width, angle=angle):
+                path_found = True
+                chosen_angle = angle
+                break
         if self.debug_mode:
-            self.forces_pub.publish(createForcesDebugMarkerArray(attraction_force=attractive_force,
-                                    repulsive_force=repulsive_force, total_force=attractive_force + repulsive_force))
+            rospy.loginfo(
+                f"Chosen angle for the trajectory: {180/np.pi*chosen_angle} degrees")
+            rospy.loginfo(
+                f"Distance from center angle: {180/np.pi*(chosen_angle - angle_tests[0])}")
+            rospy.loginfo(f"Path found: {path_found}")
 
-        return attractive_force + repulsive_force
-    
-    def doShapesCollide(shape_vehicle, shape_obstacle):
-        pass
-
-    def createAngleTestSequence(goal_angle, angle_step, full_test_range):
-        pass
-
-    def calculateBestTrajectoryGuidedPoint(angle_tests):
-        pass
-
-    def calculateTrajectoryShapeBaselinkFrame(goal_distance, vehicle_side_length):
-        pass
-
-    def calculateObstaclesShapesBaselinkFrame(scan_readings):
-        pass
+        # If we found a path, lets calculate the guided point based on the chosen angle using the goal distance
+        if path_found:
+            guided_point_x = goal_distance * np.cos(chosen_angle)
+            guided_point_y = goal_distance * np.sin(chosen_angle)
+            return [guided_point_x, guided_point_y], 180/np.pi*abs(chosen_angle - angle_tests[0])
+        else:
+            rospy.logerr("No path was found to avoid obstacles!")
+            return 0, 0, 180/np.pi*abs(angle_tests[-1] - angle_tests[0])
 
     ############################################################################
     # MAIN CONTROL LOOP CALLBACK
@@ -372,10 +365,6 @@ class ObstacleAvoidance:
                 rospy.logwarn(
                     f"Obstacle detected in less than {self.max_obstacle_distance}m!")
 
-            # Start avoiding and set the GUIDED mode to send commands
-            if self.current_state.mode == "AUTO":
-                self.setFlightMode("GUIDED")
-
             # Lets only proceed if there is enough time since we last sent a guided point to the vehicle
             if time() - self.last_guided_point_time < self.guided_point_sending_interval:
                 return
@@ -386,18 +375,45 @@ class ObstacleAvoidance:
                 # Grab the goal direction in baselink frame
                 goal_baselink_frame = self.worldToBaselink(
                     target_lat=self.current_target.latitude, target_lon=self.current_target.longitude)
+                goal_angle_baselink_frame = np.arctan2(
+                    goal_baselink_frame[1], goal_baselink_frame[0])
+                goal_distance = np.linalg.norm(goal_baselink_frame)
+
+                # Calculate the angles we will test to create the best trajectory
+                angle_tests = self.createAngleTestSequence(
+                    goal_angle=180/np.pi*goal_angle_baselink_frame, angle_step=5, full_test_range=90)
+                if self.debug_mode:
+                    rospy.loginfo(
+                        f"Goal direction in baselink frame: {goal_baselink_frame}")
+                    rospy.loginfo(f"Goal distance: {goal_distance} m")
+                    rospy.loginfo(
+                        f"Goal angle in baselink frame: {180/np.pi*goal_angle_baselink_frame} degrees")
+
                 # Isolate the readings that return the obstacles - obstacles are in pairs of (range, angle) in baselink frame
                 obstacles_baselink_frame = [[r, i * scan.angle_increment - scan.angle_min]
                                             for i, r in enumerate(valid_ranges) if r < self.max_obstacle_distance]
-                obstacles_shapes_baselink_frame = self.calculateObstaclesShapesBaselinkFrame(obstacles_baselink_frame)
+                obstacles_baselink_frame_xy = [self.laserScanToXY(
+                    range=r, angle=a) for r, a in obstacles_baselink_frame]
                 if self.debug_mode:
-                    obstacles_baselink_frame_xy = [self.laserScanToXY(
-                        range=r, angle=a) for r, a in obstacles_baselink_frame]
                     self.obstacles_pub.publish(
                         createObstaclesDebugMarkerArray(obstacles_baselink_frame_xy))
-                    
+
                 # Get the best trajectory from the shapes we are observing, starting from the goal point angle
-                self.calculateBestTrajectoryGuidedPoint
+                guided_point_baselink_frame, guided_to_goal_angle = self.calculateBestTrajectoryGuidedPoint(
+                    angle_tests=angle_tests, goal_distance=goal_distance, obstacles_baselink_frame_xy=obstacles_baselink_frame_xy)
+
+                # Start avoiding and set the GUIDED mode to send commands
+                # If we should in fact just keep to the goal, meaning no obstacles are in the way, we should go back to AUTO mode
+                if self.current_state.mode == "AUTO" and guided_to_goal_angle > 5:
+                    self.setFlightMode("GUIDED")
+                    if self.debug_mode:
+                        rospy.logwarn(
+                            "Avoiding obstacles by setting GUIDED mode ...")
+                elif self.current_state.mode == "GUIDED" and guided_to_goal_angle < 5:
+                    self.setFlightMode("AUTO")
+                    if self.debug_mode:
+                        rospy.logwarn(
+                            "No obstacles in the way, resuming AUTO mode ...")
 
                 # Convert the travel point to world frame
                 guided_point_world_frame_lat, guided_point_world_frame_lon = self.baselinkToWorld(
@@ -410,19 +426,20 @@ class ObstacleAvoidance:
                 guided_point_world_frame_msg.altitude = self.current_location.altitude
                 self.setpoint_pub.publish(guided_point_world_frame_msg)
 
-                # Set the current target to follow this new point as well
-                self.current_target.latitude = guided_point_world_frame_lat
-                self.current_target.longitude = guided_point_world_frame_lon
-                self.current_target.altitude = self.current_location.altitude
-
                 # Publish goal and target points for debug purposes
                 if self.debug_mode:
                     self.goal_guided_point_pub.publish(createGoalGuidedPointDebugMarkerArray(
                         goal=goal_baselink_frame, guided_point=guided_point_baselink_frame))
-                # Log the complete loop information
-                if self.debug_mode:
+                    self.robot_path_area_pub.publish(createRobotPathAreaMarker(
+                        height=goal_distance, width=self.vehicle_width, angle=goal_angle_baselink_frame))
+                    # Log the complete loop information
                     self.logCallbackLoop(
                         obstacles_baselink_frame, goal_baselink_frame, guided_point_baselink_frame)
+
+                if self.debug_mode:
+                    end_time = time()
+                    rospy.loginfo(
+                        f"Time to process avoidance: {1000*(end_time - self.last_input_scan_message_time)} milliseconds.")
 
         elif self.current_state.mode == "GUIDED":
             if self.debug_mode:
