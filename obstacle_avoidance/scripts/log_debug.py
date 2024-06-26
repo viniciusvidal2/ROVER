@@ -4,6 +4,7 @@ from geometry_msgs.msg import Point
 from visualization_msgs.msg import Marker, MarkerArray
 from time import time
 import datetime
+import tf
 
 
 def getCurrentTimeAsString():
@@ -25,7 +26,7 @@ def createObstaclesDebugMarkerArray(obstacles):
         marker.header.frame_id = "map"
         marker.header.stamp = rospy.Time.now()
         marker.id = i
-        marker.type = Marker.CUBE
+        marker.type = Marker.SPHERE
         marker.action = Marker.ADD
         marker.pose.position.x = obstacles[i][0]
         marker.pose.position.y = obstacles[i][1]
@@ -34,9 +35,9 @@ def createObstaclesDebugMarkerArray(obstacles):
         marker.pose.orientation.y = 0.0
         marker.pose.orientation.z = 0.0
         marker.pose.orientation.w = 1.0
-        marker.scale.x = 0.5
-        marker.scale.y = 0.5
-        marker.scale.z = 1.0
+        marker.scale.x = 0.2
+        marker.scale.y = 0.2
+        marker.scale.z = 0.2
         marker.color.a = 1.0
         marker.color.r = 1.0
         marker.color.g = 0.0
@@ -44,6 +45,7 @@ def createObstaclesDebugMarkerArray(obstacles):
         marker_array.markers.append(marker)
 
     return marker_array
+
 
 def createGoalGuidedPointDebugMarkerArray(goal, guided_point):
     marker_array = MarkerArray()
@@ -68,7 +70,7 @@ def createGoalGuidedPointDebugMarkerArray(goal, guided_point):
     marker.color.g = 1.0
     marker.color.b = 0.0
     marker_array.markers.append(marker)
-    
+
     marker = Marker()
     marker.header.frame_id = "map"
     marker.header.stamp = rospy.Time.now()
@@ -90,7 +92,7 @@ def createGoalGuidedPointDebugMarkerArray(goal, guided_point):
     marker.color.g = 0.0
     marker.color.b = 1.0
     marker_array.markers.append(marker)
-    
+
     return marker_array
 
 
@@ -169,3 +171,31 @@ def createForcesDebugMarkerArray(attraction_force, repulsive_force, total_force)
     marker_array.markers.append(marker)
 
     return marker_array
+
+
+def createRobotPathAreaMarker(height, width, angle):
+    # Create rotated rectangle from the input data and return the marker
+    # The rectagle has a tip at the origin and is rotated by the given angle
+    quat = tf.transformations.quaternion_from_euler(0, 0, angle)
+    marker = Marker()
+    marker.header.frame_id = "map"
+    marker.header.stamp = rospy.Time.now()
+    marker.id = 0
+    marker.type = Marker.ARROW
+    marker.action = Marker.ADD
+    marker.pose.position.x = 0
+    marker.pose.position.y = 0
+    marker.pose.position.z = 0.5
+    marker.pose.orientation.x = quat[0]
+    marker.pose.orientation.y = quat[1]
+    marker.pose.orientation.z = quat[2]
+    marker.pose.orientation.w = quat[3]
+    marker.scale.x = height
+    marker.scale.y = width
+    marker.scale.z = 0.1
+    marker.color.a = 1.0
+    marker.color.r = 0.0
+    marker.color.g = 1.0
+    marker.color.b = 0.0
+
+    return marker
