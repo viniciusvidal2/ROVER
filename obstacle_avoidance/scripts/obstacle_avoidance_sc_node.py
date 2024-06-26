@@ -157,6 +157,9 @@ class ObstacleAvoidance:
     def laserScanToXY(self, range, angle):
         x_baselink = range*np.cos(angle)
         y_baselink = range*np.sin(angle)
+        if self.debug_mode:
+            rospy.logwarn(
+                f"Convertion using r={range} and angle={180/np.pi*angle}: x={x_baselink} y={y_baselink}")
 
         return x_baselink, y_baselink
 
@@ -354,8 +357,7 @@ class ObstacleAvoidance:
         # Make sure the scan values are valid before doing any math
         valid_ranges = np.array(scan.ranges)
         valid_ranges[valid_ranges == 0] = 1e6
-        closest_obstacle_distance_index = np.argmin(valid_ranges)
-        closest_obstacle_distance = valid_ranges[closest_obstacle_distance_index]
+        closest_obstacle_distance = np.min(valid_ranges)
         # If any point is close enough, process the avoidance behavior
         if closest_obstacle_distance < self.max_obstacle_distance:
             if self.debug_mode:
@@ -387,7 +389,7 @@ class ObstacleAvoidance:
                         f"Goal angle in baselink frame: {180/np.pi*goal_angle_baselink_frame} degrees")
 
                 # Isolate the readings that return the obstacles - obstacles are in pairs of (range, angle) in baselink frame
-                obstacles_baselink_frame = [[r, i * scan.angle_increment - scan.angle_min]
+                obstacles_baselink_frame = [[r, i * scan.angle_increment + scan.angle_min]
                                             for i, r in enumerate(valid_ranges) if r < self.max_obstacle_distance]
                 obstacles_baselink_frame_xy = [self.laserScanToXY(
                     range=r, angle=a) for r, a in obstacles_baselink_frame]
