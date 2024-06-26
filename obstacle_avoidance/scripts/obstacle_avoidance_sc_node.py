@@ -429,8 +429,9 @@ class ObstacleAvoidance:
                 if self.debug_mode:
                     self.goal_guided_point_pub.publish(createGoalGuidedPointDebugMarkerArray(
                         goal=goal_baselink_frame, guided_point=guided_point_baselink_frame))
+                    guided_point_angle = np.arctan2(guided_point_baselink_frame[1], guided_point_baselink_frame[0])
                     self.robot_path_area_pub.publish(createRobotPathAreaMarker(
-                        height=goal_distance, width=self.vehicle_width, angle=goal_angle_baselink_frame))
+                        height=goal_distance, width=self.vehicle_width, angle=guided_point_angle))
                     # Log the complete loop information
                     self.logCallbackLoop(
                         obstacles_baselink_frame=obstacles_baselink_frame_xy, goal_baselink_frame=goal_baselink_frame, guided_point_baselink_frame=guided_point_baselink_frame)

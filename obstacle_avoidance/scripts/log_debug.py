@@ -42,6 +42,7 @@ def createObstaclesDebugMarkerArray(obstacles):
         marker.color.r = 1.0
         marker.color.g = 0.0
         marker.color.b = 0.0
+        marker.lifetime = rospy.Duration(2)
         marker_array.markers.append(marker)
 
     return marker_array
@@ -69,6 +70,7 @@ def createGoalGuidedPointDebugMarkerArray(goal, guided_point):
     marker.color.r = 0.0
     marker.color.g = 1.0
     marker.color.b = 0.0
+    marker.lifetime = rospy.Duration(2)
     marker_array.markers.append(marker)
 
     marker = Marker()
@@ -91,6 +93,7 @@ def createGoalGuidedPointDebugMarkerArray(goal, guided_point):
     marker.color.r = 0.0
     marker.color.g = 0.0
     marker.color.b = 1.0
+    marker.lifetime = rospy.Duration(2)
     marker_array.markers.append(marker)
 
     return marker_array
@@ -120,6 +123,7 @@ def createForcesDebugMarkerArray(attraction_force, repulsive_force, total_force)
     marker.color.b = 0.0
     marker.points.append(Point(0, 0, 0))
     marker.points.append(Point(attraction_force[0], attraction_force[1], 0))
+    marker.lifetime = rospy.Duration(2)
     marker_array.markers.append(marker)
 
     marker = Marker()
@@ -144,6 +148,7 @@ def createForcesDebugMarkerArray(attraction_force, repulsive_force, total_force)
     marker.color.b = 0.0
     marker.points.append(Point(0, 0, 0))
     marker.points.append(Point(repulsive_force[0], repulsive_force[1], 0))
+    marker.lifetime = rospy.Duration(2)
     marker_array.markers.append(marker)
 
     marker = Marker()
@@ -168,6 +173,7 @@ def createForcesDebugMarkerArray(attraction_force, repulsive_force, total_force)
     marker.color.b = 1.0
     marker.points.append(Point(0, 0, 0))
     marker.points.append(Point(total_force[0], total_force[1], 0))
+    marker.lifetime = rospy.Duration(2)
     marker_array.markers.append(marker)
 
     return marker_array
@@ -197,5 +203,6 @@ def createRobotPathAreaMarker(height, width, angle):
     marker.color.r = 0.0
     marker.color.g = 1.0
     marker.color.b = 0.0
+    marker.lifetime = rospy.Duration(2)
 
     return marker
