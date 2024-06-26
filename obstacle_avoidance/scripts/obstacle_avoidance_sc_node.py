@@ -37,7 +37,7 @@ class ObstacleAvoidance:
         self.current_target = None  # target waypoint data in AUTO mode
         self.utm_zone_number = None  # UTM zone number
         self.utm_zone_letter = None  # UTM zone letter
-        self.vehicle_width = 0.4  # [m]
+        self.vehicle_width = 0.8  # [m]
 
         # If the image and logging folders are not created, make sure we create it
         if self.debug_mode:
@@ -212,7 +212,7 @@ class ObstacleAvoidance:
                     if self.debug_mode:
                         rospy.loginfo(
                             f"Target point set to {self.current_target.latitude}, {self.current_target.longitude}.")
-        if self.debug_mode:
+        if self.debug_mode and self.current_target:
             x_target_baselink, y_target_baselink = self.worldToBaselink(
                 target_lat=self.current_target.latitude, target_lon=self.current_target.longitude)
             rospy.logwarn(
@@ -433,7 +433,7 @@ class ObstacleAvoidance:
                         height=goal_distance, width=self.vehicle_width, angle=goal_angle_baselink_frame))
                     # Log the complete loop information
                     self.logCallbackLoop(
-                        obstacles_baselink_frame, goal_baselink_frame, guided_point_baselink_frame)
+                        obstacles_baselink_frame=obstacles_baselink_frame_xy, goal_baselink_frame=goal_baselink_frame, guided_point_baselink_frame=guided_point_baselink_frame)
 
                 if self.debug_mode:
                     end_time = time()

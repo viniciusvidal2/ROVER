@@ -197,14 +197,8 @@ class ObstacleAvoidance:
     # SENSOR CALLBACKS
     ############################################################################
     def targetPointCallback(self, data):
-        # If not auto mode or no mission is observed, we add the incoming data as our target
-        if not self.waypoints_list:
-            self.current_target = data
-            if self.debug_mode:
-                rospy.loginfo(
-                    f"Target point set to {self.current_target.latitude}, {self.current_target.longitude}.")
         # If we are in AUTO mode, we need to grab the next waypoint in the mission, if we do have a mission
-        elif self.current_state.mode == "AUTO" and self.waypoints_list:
+        if self.waypoints_list:
             for waypoint in self.waypoints_list:
                 if waypoint.is_current:
                     self.current_target = GlobalPositionTarget()
@@ -213,8 +207,8 @@ class ObstacleAvoidance:
                     self.current_target.altitude = waypoint.z_alt
                     if self.debug_mode:
                         rospy.loginfo(
-                            f"Target point set to {self.current_target.latitude}, {self.current_target.longitude} in AUTO mode.")
-        if self.debug_mode:
+                            f"Target point set to {self.current_target.latitude}, {self.current_target.longitude}.")
+        if self.debug_mode and self.current_target:
             x_target_baselink, y_target_baselink = self.worldToBaselink(
                 target_lat=self.current_target.latitude, target_lon=self.current_target.longitude)
             rospy.logwarn(
@@ -408,7 +402,7 @@ class ObstacleAvoidance:
                 # Log the complete loop information
                 if self.debug_mode:
                     self.logCallbackLoop(
-                        obstacles_baselink_frame, goal_baselink_frame, guided_point_baselink_frame)
+                        obstacles_baselink_frame_xy, goal_baselink_frame, guided_point_baselink_frame)
 
         elif self.current_state.mode == "GUIDED":
             if self.debug_mode:
