@@ -49,11 +49,13 @@ def isPointInRotatedRectangle(point, rotated_corners):
 
 def testPointsInRotatedRectangle(points, length, width, angle):
     rotated_corners = createRotatedRectangle(length, width, angle)
-    test_results = [isPointInRotatedRectangle(
-        np.array(point), rotated_corners) for point in points]
-
-    # Only return true if all the tests were false, so no collision was observed
-    return not any(test_results)
+    any_points_inside_rectangle = False
+    for point in points:
+        if isPointInRotatedRectangle(np.asarray(point), rotated_corners):
+            any_points_inside_rectangle = True
+            break
+    
+    return any_points_inside_rectangle
 
 
 # points_to_test = [[1, 0], [0, 0], [0, 1], [1, 1]]
