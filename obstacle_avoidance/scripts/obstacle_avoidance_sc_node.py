@@ -4,7 +4,7 @@ from mavros_msgs.msg import State, GlobalPositionTarget, WaypointList, HomePosit
 from mavros_msgs.srv import SetMode
 from sensor_msgs.msg import NavSatFix, LaserScan
 from std_msgs.msg import Float64
-from sensor_msgs.msg import LaserScan, Imu
+from sensor_msgs.msg import LaserScan
 from visualization_msgs.msg import MarkerArray
 import numpy as np
 from time import time
@@ -70,8 +70,6 @@ class ObstacleAvoidance:
                          WaypointList, self.missionWaypointsCallback, queue_size=10)
         rospy.Subscriber("/mavros/home_position/home",
                          HomePosition, self.homePositionCallback, queue_size=1)
-        rospy.Subscriber("/mavros/imu/data", Imu,
-                         self.imuCallback, queue_size=1)
 
         # If no message for some reason, resume original state with a frequency based callback
         self.timer_cb = rospy.Timer(rospy.Duration(
@@ -200,17 +198,6 @@ class ObstacleAvoidance:
     ############################################################################
     # SENSOR CALLBACKS
     ############################################################################
-    def imuCallback(self, data):
-        # Get the orientation quaternion from the IMU
-        current_imu = np.arctan2(2.0 * (data.orientation.w * data.orientation.z + data.orientation.x * data.orientation.y),
-                                 1.0 - 2.0 * (data.orientation.y * data.orientation.y + data.orientation.z * data.orientation.z))
-        # Convert to 0-2pi range
-        if current_imu < 0:
-            current_imu += 2*np.pi
-        if self.debug_mode:
-            rospy.logwarn(
-                f"Current imu: {self.current_yaw*180.0/np.pi} degrees")
-
     def targetPointCallback(self, data):
         # If we are in AUTO mode, we need to grab the next waypoint in the mission, if we do have a mission
         if self.waypoints_list:
