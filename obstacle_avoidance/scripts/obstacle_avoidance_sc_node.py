@@ -38,7 +38,7 @@ class ObstacleAvoidance:
         self.current_target = None  # target waypoint data in AUTO mode
         self.utm_zone_number = None  # UTM zone number
         self.utm_zone_letter = None  # UTM zone letter
-        self.vehicle_width = 0.8  # [m]
+        self.vehicle_width = 1.5  # [m]
 
         # If the image and logging folders are not created, make sure we create it
         if self.debug_mode:
@@ -435,10 +435,19 @@ class ObstacleAvoidance:
                         rospy.logwarn(
                             "Avoiding obstacles by setting GUIDED mode ...")
                 elif self.current_state.mode == "GUIDED" and guided_to_goal_angle < 5:
-                    self.setFlightMode("AUTO")
-                    if self.debug_mode:
-                        rospy.logwarn(
-                            "No obstacles in the way, resuming AUTO mode ...")
+                    # Check if there is enough FOV to the goal before changing to AUTO mode, which means we have 
+                    # now quite passed by the obstacle
+                    safe_fov = 60
+                    we_are_safe = True
+                    for _, angle in obstacles_baselink_frame:
+                        if abs(goal_angle_baselink_frame - angle) < safe_fov/2:
+                            we_are_safe = False
+                            break
+                    if we_are_safe:
+                        self.setFlightMode("AUTO")
+                        if self.debug_mode:
+                            rospy.logwarn(
+                                "No obstacles in the way, resuming AUTO mode ...")
 
                 # Convert the travel point to world frame
                 guided_point_world_frame_lat, guided_point_world_frame_lon = self.baselinkToWorld(
