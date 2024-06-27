@@ -21,7 +21,7 @@ class ObstacleAvoidance:
 
         # User arguments
         self.guided_point_sending_interval = rospy.get_param(
-            '~sendingT', 2)  # [s]
+            '~sendingT', 4)  # [s]
         self.max_obstacle_distance = rospy.get_param('~maxDist', 3)  # [m]
 
         # Control the node execution incoming messages
@@ -389,10 +389,10 @@ class ObstacleAvoidance:
                 else:
                     rospy.logwarn("No target set yet.")
 
-            # # Lets only proceed if there is enough time since we last sent a guided point to the vehicle
-            # if time() - self.last_guided_point_time < self.guided_point_sending_interval:
-            #     return
-            # self.last_guided_point_time = time()
+            # Lets only proceed if there is enough time since we last sent a guided point to the vehicle
+            if time() - self.last_guided_point_time < self.guided_point_sending_interval:
+                return
+            self.last_guided_point_time = time()
 
             # In case there is a target waypoint, we can calculate the avoidance
             if self.current_target:
