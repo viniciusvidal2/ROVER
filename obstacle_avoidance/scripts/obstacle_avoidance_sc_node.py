@@ -321,12 +321,13 @@ class ObstacleAvoidance:
                     f"Failed to resume original state, setting MANUAL mode: {e}")
 
     def createAngleTestSequence(self, goal_angle, angle_step, full_test_range):
-        # Lets have a list of angles to test, starting from the goal angle and going in both directions
-        # in a breadth first search manner
+        # Lets have a list of angles to test, starting from the goal angle and going in each direction
+        # to try to keep the avoidance behavior, in a best first search manner
         angles = list()  # [RAD]
         angles.append(np.radians(goal_angle))
         for i in range(angle_step, full_test_range, angle_step):
             angles.append(np.radians(goal_angle + i))
+        for i in range(angle_step, full_test_range, angle_step):
             angles.append(np.radians(goal_angle - i))
 
         return angles
