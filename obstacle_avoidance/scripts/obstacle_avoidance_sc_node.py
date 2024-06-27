@@ -362,7 +362,7 @@ class ObstacleAvoidance:
             except rospy.ServiceException as e:
                 rospy.logerr(f"Waypoint set service call failed for inde {previous_waypoint_index}: {e}")
             self.current_waypoint_index = previous_waypoint_index
-            return 0, 0, np.degrees(abs(angle_tests[-1] - angle_tests[0]))
+            return [0, 0], np.degrees(abs(angle_tests[-1] - angle_tests[0]))
 
     ############################################################################
     # MAIN CONTROL LOOP CALLBACK
