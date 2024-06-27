@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import rospy
 from mavros_msgs.msg import State, GlobalPositionTarget, WaypointList, HomePosition
-from mavros_msgs.srv import SetMode
+from mavros_msgs.srv import SetMode, WaypointSetCurrent
 from sensor_msgs.msg import NavSatFix, LaserScan
 from std_msgs.msg import Float64
 from sensor_msgs.msg import LaserScan
@@ -35,6 +35,7 @@ class ObstacleAvoidance:
         self.debug_mode = True  # debug mode to print more information
         self.home_waypoint = None  # home waypoint data, contains home lat and lon
         self.waypoints_list = None  # list of waypoints in the autonomous mission
+        self.current_waypoint_index = -1  # Autonomous mission waypoint we are tracking
         self.current_target = None  # target waypoint data in AUTO mode
         self.utm_zone_number = None  # UTM zone number
         self.utm_zone_letter = None  # UTM zone letter
@@ -88,7 +89,9 @@ class ObstacleAvoidance:
 
         # Services
         rospy.wait_for_service('/mavros/set_mode')
+        rospy.wait_for_service('/mavros/mission/set_current')
         self.set_mode_service = rospy.ServiceProxy('/mavros/set_mode', SetMode)
+        self.set_current_wp_srv = rospy.ServiceProxy('/mavros/mission/set_current', WaypointSetCurrent)
 
         rospy.loginfo("Obstacle avoidance node initialized.")
         logging.info("Obstacle avoidance node initialized.")
@@ -202,15 +205,17 @@ class ObstacleAvoidance:
     def targetPointCallback(self, data):
         # If we are in AUTO mode, we need to grab the next waypoint in the mission, if we do have a mission
         if self.waypoints_list:
-            for waypoint in self.waypoints_list:
+            for i, waypoint in enumerate(self.waypoints_list):
                 if waypoint.is_current:
                     self.current_target = GlobalPositionTarget()
                     self.current_target.latitude = waypoint.x_lat
                     self.current_target.longitude = waypoint.y_long
                     self.current_target.altitude = waypoint.z_alt
+                    self.current_waypoint_index = i
                     if self.debug_mode:
                         rospy.logwarn(
                             f"Target point set to {self.current_target.latitude}, {self.current_target.longitude} in target point callback.")
+                    break
         if self.debug_mode and self.current_target:
             x_target_baselink, y_target_baselink = self.worldToBaselink(
                 target_lat=self.current_target.latitude, target_lon=self.current_target.longitude)
@@ -244,12 +249,13 @@ class ObstacleAvoidance:
             self.waypoints_list[-1].y_long = self.home_waypoint.geo.longitude
         # Get the current target waypoint if we are in a mission
         if self.current_state.mode == "AUTO":
-            for waypoint in self.waypoints_list:
+            for i, waypoint in enumerate(self.waypoints_list):
                 if waypoint.is_current:
                     self.current_target = GlobalPositionTarget()
                     self.current_target.latitude = waypoint.x_lat
                     self.current_target.longitude = waypoint.y_long
                     self.current_target.altitude = waypoint.z_alt
+                    self.current_waypoint_index = i
                     if self.debug_mode:
                         rospy.loginfo(
                             f"Target point set to {self.current_target.latitude}, {self.current_target.longitude} in mission callback.")
@@ -342,7 +348,20 @@ class ObstacleAvoidance:
             guided_point_y = goal_distance * np.sin(chosen_angle)
             return [guided_point_x, guided_point_y], np.degrees(abs(chosen_angle - angle_tests[0]))
         else:
-            rospy.logerr("No path was found to avoid obstacles!")
+            # Lets try to go back to the previous point
+            rospy.logerr("No path was found to avoid obstacles, going back to previous waypoint in mission, if any!")
+            previous_waypoint_index = self.current_waypoint_index - 1
+            if self.current_waypoint_index == 2:
+                previous_waypoint_index = 0
+            try:
+                response = self.set_current_wp_srv(previous_waypoint_index)
+                if response.success:
+                    rospy.loginfo(f"Successfully set current waypoint to {previous_waypoint_index}")
+                else:
+                    rospy.logwarn(f"Failed to set current waypoint to {previous_waypoint_index}")
+            except rospy.ServiceException as e:
+                rospy.logerr(f"Waypoint set service call failed for inde {previous_waypoint_index}: {e}")
+            self.current_waypoint_index = previous_waypoint_index
             return 0, 0, np.degrees(abs(angle_tests[-1] - angle_tests[0]))
 
     ############################################################################
@@ -395,7 +414,7 @@ class ObstacleAvoidance:
 
                 # Calculate the angles we will test to create the best trajectory
                 angle_tests = self.createAngleTestSequence(
-                    goal_angle=np.degrees(goal_angle_baselink_frame), angle_step=5, full_test_range=90)
+                    goal_angle=np.degrees(goal_angle_baselink_frame), angle_step=10, full_test_range=90)
                 if self.debug_mode:
                     rospy.loginfo(
                         f"Goal direction in baselink frame: {goal_baselink_frame}")
