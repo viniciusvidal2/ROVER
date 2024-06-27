@@ -19,10 +19,10 @@ class ObstacleAvoidance:
 
         # User arguments
         self.guided_point_sending_interval = rospy.get_param(
-            '~sendingT', 2)  # [s]
-        self.max_obstacle_distance = rospy.get_param('~maxDist', 3)  # [m]
+            '~sending_t', 2)  # [s]
+        self.max_obstacle_distance = rospy.get_param('~max_dist', 3)  # [m]
         # The minimum distance a point we are using to avoid obstacles must have from current location [m]
-        self.min_guided_point_distance = rospy.get_param('~guidedDistance', 30)
+        self.min_guided_point_distance = rospy.get_param('~max_dist_to_guided', 30)
         # Potential fields repulsive force gain
         self.K = rospy.get_param('~k', 0.58)
 

@@ -21,8 +21,8 @@ class ObstacleAvoidance:
 
         # User arguments
         self.guided_point_sending_interval = rospy.get_param(
-            '~sendingT', 3)  # [s]
-        self.max_obstacle_distance = rospy.get_param('~maxDist', 3)  # [m]
+            '~sending_t', 3)  # [s]
+        self.max_obstacle_distance = rospy.get_param('~max_dist', 3)  # [m]
 
         # Control the node execution incoming messages
         self.last_input_scan_message_time = time()
