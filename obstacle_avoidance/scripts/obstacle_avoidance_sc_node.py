@@ -221,8 +221,8 @@ class ObstacleAvoidance:
                     self.current_target.longitude = waypoint.y_long
                     self.current_target.altitude = waypoint.z_alt
                     if self.debug_mode:
-                        rospy.loginfo(
-                            f"Target point set to {self.current_target.latitude}, {self.current_target.longitude}.")
+                        rospy.logwarn(
+                            f"Target point set to {self.current_target.latitude}, {self.current_target.longitude} in target point callback.")
         if self.debug_mode and self.current_target:
             x_target_baselink, y_target_baselink = self.worldToBaselink(
                 target_lat=self.current_target.latitude, target_lon=self.current_target.longitude)
@@ -247,6 +247,9 @@ class ObstacleAvoidance:
     def missionWaypointsCallback(self, data):
         # Get the list of waypoints in the mission
         self.waypoints_list = data.waypoints
+        if len(self.waypoints_list) == 0:
+            rospy.logwarn("No waypoints in the mission.")
+            return
         # If the last waypoint coordinates are 0, that means it is a return to launch waypoint, so we add the home waypoint values to this waypoint
         if self.waypoints_list[-1].x_lat == 0 and self.waypoints_list[-1].y_long == 0 and self.home_waypoint:
             self.waypoints_list[-1].x_lat = self.home_waypoint.geo.latitude
@@ -259,6 +262,9 @@ class ObstacleAvoidance:
                     self.current_target.latitude = waypoint.x_lat
                     self.current_target.longitude = waypoint.y_long
                     self.current_target.altitude = waypoint.z_alt
+                    if self.debug_mode:
+                        rospy.loginfo(
+                            f"Target point set to {self.current_target.latitude}, {self.current_target.longitude} in mission callback.")
                     break
 
     def homePositionCallback(self, data):
@@ -377,6 +383,11 @@ class ObstacleAvoidance:
             if self.debug_mode:
                 rospy.logwarn(
                     f"Obstacle detected in less than {self.max_obstacle_distance}m!")
+                if self.current_target:
+                    rospy.logwarn(
+                        f"Current target: {self.current_target.latitude}, {self.current_target.longitude}")
+                else:
+                    rospy.logwarn("No target set yet.")
 
             # # Lets only proceed if there is enough time since we last sent a guided point to the vehicle
             # if time() - self.last_guided_point_time < self.guided_point_sending_interval:
