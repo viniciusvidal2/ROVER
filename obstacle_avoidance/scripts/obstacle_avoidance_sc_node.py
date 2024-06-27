@@ -378,10 +378,10 @@ class ObstacleAvoidance:
                 rospy.logwarn(
                     f"Obstacle detected in less than {self.max_obstacle_distance}m!")
 
-            # Lets only proceed if there is enough time since we last sent a guided point to the vehicle
-            if time() - self.last_guided_point_time < self.guided_point_sending_interval:
-                return
-            self.last_guided_point_time = time()
+            # # Lets only proceed if there is enough time since we last sent a guided point to the vehicle
+            # if time() - self.last_guided_point_time < self.guided_point_sending_interval:
+            #     return
+            # self.last_guided_point_time = time()
 
             # In case there is a target waypoint, we can calculate the avoidance
             if self.current_target:
