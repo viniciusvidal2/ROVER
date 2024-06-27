@@ -8,7 +8,7 @@
     <arg name="fcu_protocol" default="v2.0"/>
     <arg name="respawn_mavros" default="false"/>
     <arg name="k" default="0.58"/>
-    <arg name="sendingT" default="4"/>
+    <arg name="sendingT" default="3"/>
     <arg name="maxDist" default="3"/>
     <arg name="guidedDistance" default="30"/>
 
