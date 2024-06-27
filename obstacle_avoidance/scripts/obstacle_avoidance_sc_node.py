@@ -39,6 +39,7 @@ class ObstacleAvoidance:
         self.utm_zone_number = None  # UTM zone number
         self.utm_zone_letter = None  # UTM zone letter
         self.vehicle_width = 1.5  # [m]
+        self.critical_zone_radius = 1.0  # [m]
 
         # If the image and logging folders are not created, make sure we create it
         if self.debug_mode:
@@ -103,7 +104,7 @@ class ObstacleAvoidance:
         logging.debug(f"Current state: {self.current_state.mode}")
         logging.debug(
             f"Current location: lat {self.current_location.latitude} lon {self.current_location.longitude}")
-        logging.debug(f"Current yaw: {self.current_yaw*180.0/np.pi} degrees")
+        logging.debug(f"Current yaw: {np.degrees(self.current_yaw)} degrees")
         logging.debug(
             f"Original target: lat {self.current_target.latitude} lon {self.current_target.longitude}")
         logging.debug(
@@ -119,7 +120,7 @@ class ObstacleAvoidance:
         rospy.loginfo(f"Current state: {self.current_state.mode}")
         rospy.loginfo(
             f"Current location: lat {self.current_location.latitude} lon {self.current_location.longitude}")
-        rospy.loginfo(f"Current yaw: {self.current_yaw*180.0/np.pi} degrees")
+        rospy.loginfo(f"Current yaw: {np.degrees(self.current_yaw)} degrees")
         rospy.loginfo(
             f"Original target: lat {self.current_target.latitude} lon {self.current_target.longitude}")
         rospy.loginfo(
@@ -229,7 +230,7 @@ class ObstacleAvoidance:
         self.current_yaw = np.radians(data.data)  # [RAD]
         if self.debug_mode:
             rospy.logwarn(
-                f"Current yaw: {self.current_yaw*180.0/np.pi} degrees")
+                f"Current yaw: {np.degrees(self.current_yaw)} degrees")
 
     def missionWaypointsCallback(self, data):
         # Get the list of waypoints in the mission
@@ -330,19 +331,19 @@ class ObstacleAvoidance:
                 break
         if self.debug_mode:
             rospy.loginfo(
-                f"Chosen angle for the trajectory: {180/np.pi*chosen_angle} degrees")
+                f"Chosen angle for the trajectory: {np.degrees(chosen_angle)} degrees")
             rospy.loginfo(
-                f"Distance from center angle: {180/np.pi*(chosen_angle - angle_tests[0])}")
+                f"Distance from center angle: {np.degrees(chosen_angle - angle_tests[0])}")
             rospy.loginfo(f"Path found: {path_found}")
 
         # If we found a path, lets calculate the guided point based on the chosen angle using the goal distance
         if path_found:
             guided_point_x = goal_distance * np.cos(chosen_angle)
             guided_point_y = goal_distance * np.sin(chosen_angle)
-            return [guided_point_x, guided_point_y], 180/np.pi*abs(chosen_angle - angle_tests[0])
+            return [guided_point_x, guided_point_y], np.degrees(abs(chosen_angle - angle_tests[0]))
         else:
             rospy.logerr("No path was found to avoid obstacles!")
-            return 0, 0, 180/np.pi*abs(angle_tests[-1] - angle_tests[0])
+            return 0, 0, np.degrees(abs(angle_tests[-1] - angle_tests[0]))
 
     ############################################################################
     # MAIN CONTROL LOOP CALLBACK
@@ -378,7 +379,8 @@ class ObstacleAvoidance:
                     rospy.logwarn("No target set yet.")
 
             # Lets only proceed if there is enough time since we last sent a guided point to the vehicle
-            if time() - self.last_guided_point_time < self.guided_point_sending_interval:
+            # If inside the critical zone, always act
+            if time() - self.last_guided_point_time < self.guided_point_sending_interval and closest_obstacle_distance > self.critical_zone_radius:
                 return
             self.last_guided_point_time = time()
 
@@ -393,13 +395,13 @@ class ObstacleAvoidance:
 
                 # Calculate the angles we will test to create the best trajectory
                 angle_tests = self.createAngleTestSequence(
-                    goal_angle=180/np.pi*goal_angle_baselink_frame, angle_step=5, full_test_range=90)
+                    goal_angle=np.degrees(goal_angle_baselink_frame), angle_step=5, full_test_range=90)
                 if self.debug_mode:
                     rospy.loginfo(
                         f"Goal direction in baselink frame: {goal_baselink_frame}")
                     rospy.loginfo(f"Goal distance: {goal_distance} m")
                     rospy.loginfo(
-                        f"Goal angle in baselink frame: {180/np.pi*goal_angle_baselink_frame} degrees")
+                        f"Goal angle in baselink frame: {np.degrees(goal_angle_baselink_frame)} degrees")
 
                 # Isolate the readings that return the obstacles - obstacles are in pairs of (range, angle) in baselink frame
                 obstacles_baselink_frame = [[r, i * scan.angle_increment + scan.angle_min]
@@ -422,8 +424,8 @@ class ObstacleAvoidance:
                         rospy.logwarn(
                             "Avoiding obstacles by setting GUIDED mode ...")
                 elif self.current_state.mode == "GUIDED" and guided_to_goal_angle < 5:
-                    # Check if there is enough FOV to the goal before changing to AUTO mode, which means we have 
-                    # now quite passed by the obstacle
+                    # Check if there is enough FOV to the goal before changing to AUTO mode, which means we have
+                    # now quite left the obstacle behind
                     safe_fov = 60
                     we_are_safe = True
                     for _, angle in obstacles_baselink_frame:
