@@ -265,6 +265,10 @@ class ObstacleAvoidance:
                 goal_angle_baselink_frame = np.arctan2(
                     goal_baselink_frame[1], goal_baselink_frame[0])
                 goal_distance = np.linalg.norm(goal_baselink_frame)
+                # If we are closer to goal, just continue to the goal
+                if goal_distance < closest_obstacle_distance:
+                    self.setFlightMode("AUTO")
+                    return
 
                 # Calculate the angles we will test to create the best trajectory
                 angle_tests = createAngleTestSequence(
