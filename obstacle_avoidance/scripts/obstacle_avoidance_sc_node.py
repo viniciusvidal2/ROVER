@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 import rospy
-from mavros_msgs.msg import State, GlobalPositionTarget, WaypointList, HomePosition
+from mavros_msgs.msg import State, GlobalPositionTarget, WaypointList, HomePosition, PositionTarget
 from mavros_msgs.srv import SetMode, WaypointSetCurrent
 from sensor_msgs.msg import NavSatFix, LaserScan
-from std_msgs.msg import Float64
+from std_msgs.msg import Float64, Header
 from sensor_msgs.msg import LaserScan
 from visualization_msgs.msg import MarkerArray
 import numpy as np
@@ -64,8 +64,10 @@ class ObstacleAvoidance:
             1.0), self.travelStateCheckCallback)
 
         # Publishers
-        self.setpoint_pub = rospy.Publisher(
+        self.setpoint_global_pub = rospy.Publisher(
             '/mavros/setpoint_raw/global', GlobalPositionTarget, queue_size=1)
+        self.setpoint_local_pub = rospy.Publisher(
+            '/mavros/setpoint_raw/local', GlobalPositionTarget, queue_size=1)
         self.obstacles_pub = rospy.Publisher(
             '/obstacle_avoidance/obstacles', MarkerArray, queue_size=1)
         self.goal_guided_point_pub = rospy.Publisher(
@@ -221,10 +223,52 @@ class ObstacleAvoidance:
         self.current_target.longitude = self.waypoints_list[previous_waypoint_index].y_long
         self.current_target.altitude = self.waypoints_list[previous_waypoint_index].z_alt
 
+    def sendGuidedPointBodyFrame(self, guided_point_baselink_frame, guided_point_angle):
+        setpoint = PositionTarget()
+        setpoint.header = Header()
+        setpoint.header.stamp = rospy.Time.now()
+        setpoint.header.frame_id = "base_link"  # This represents the body frame
+        # Set the coordinate frame to FRAME_BODY_NED (1) for body frame
+        setpoint.coordinate_frame = PositionTarget.FRAME_BODY_NED
+        # Set position (changing y and angle to cope with XY -> NE)
+        setpoint.position.x = guided_point_baselink_frame[0]
+        setpoint.position.y = -guided_point_baselink_frame[1]
+        setpoint.position.z = 0.0
+        setpoint.velocity.x = 0.0
+        setpoint.velocity.y = 0.0
+        setpoint.velocity.z = 0.0
+        setpoint.acceleration_or_force.x = 0.0
+        setpoint.acceleration_or_force.y = 0.0
+        setpoint.acceleration_or_force.z = 0.0
+        setpoint.yaw = -guided_point_angle
+        setpoint.yaw_rate = 0.0
+        # Specify which fields are valid
+        setpoint.type_mask = PositionTarget.IGNORE_VX | PositionTarget.IGNORE_VY | PositionTarget.IGNORE_VZ \
+            | PositionTarget.IGNORE_AFX | PositionTarget.IGNORE_AFY | PositionTarget.IGNORE_AFZ \
+            | PositionTarget.IGNORE_YAW_RATE
+
+        # Publish the setpoint
+        self.setpoint_local_pub.publish(setpoint)
+
+    def sendGuidedPointGlobalFrame(self, guided_point_baselink_frame):
+        # Convert the travel point to world frame
+        guided_point_world_frame_lat, guided_point_world_frame_lon = baselinkToWorld(
+            xy_baselink=np.asarray(guided_point_baselink_frame),
+            current_location=self.current_location, current_yaw=self.current_yaw,
+            zn=self.utm_zone_number, zl=self.utm_zone_letter)
+
+        # Send the new point to the vehicle
+        guided_point_world_frame_msg = GlobalPositionTarget()
+        guided_point_world_frame_msg.latitude = guided_point_world_frame_lat
+        guided_point_world_frame_msg.longitude = guided_point_world_frame_lon
+        guided_point_world_frame_msg.altitude = self.current_location.altitude
+        self.setpoint_global_pub.publish(guided_point_world_frame_msg)
+
     # endregion
     ############################################################################
     # region MAIN CONTROL LOOP CALLBACK
     ############################################################################
+
     def laserScanCallback(self, scan):
         """
         We use distance sensor to calculate the potential fields forces and find the waypoint we should travel to.
@@ -270,9 +314,13 @@ class ObstacleAvoidance:
                     self.setFlightMode("AUTO")
                     return
 
-                # Calculate the angles we will test to create the best trajectory
+                # Checking if we are in a critical zone, so that we can act in the body frame starting from the 0 angle
+                critical_zone = closest_obstacle_distance < self.critical_zone_radius
+
+                # Calculate the angles we will test to create the best trajectory, minding the critical zone
                 angle_tests = createAngleTestSequence(
-                    goal_angle=np.degrees(goal_angle_baselink_frame), angle_step=5, full_test_range=90)
+                    goal_angle=np.degrees(goal_angle_baselink_frame), angle_step=5, full_test_range=90) if not critical_zone \
+                    else createAngleTestSequence(goal_angle=0, angle_step=5, full_test_range=90)
                 if self.debug_mode:
                     rospy.loginfo(
                         f"Goal direction in baselink frame: {goal_baselink_frame}")
@@ -310,6 +358,18 @@ class ObstacleAvoidance:
                         self.setFlightMode("AUTO")
                         return
 
+                # If it is a critical zone, we should act in the body frame, shortening the goal distance
+                if critical_zone:
+                    critical_point_distance = np.max(
+                        [closest_obstacle_distance, 2])
+                    guided_point_baselink_frame = guided_point_baselink_frame / \
+                        np.linalg.norm(guided_point_baselink_frame) * \
+                        critical_point_distance
+                    self.sendGuidedPointBodyFrame(guided_point_baselink_frame)
+                else:
+                    self.sendGuidedPointGlobalFrame(
+                        guided_point_baselink_frame)
+
                 # Convert the travel point to world frame
                 guided_point_world_frame_lat, guided_point_world_frame_lon = baselinkToWorld(
                     xy_baselink=np.asarray(guided_point_baselink_frame),
@@ -321,7 +381,7 @@ class ObstacleAvoidance:
                 guided_point_world_frame_msg.latitude = guided_point_world_frame_lat
                 guided_point_world_frame_msg.longitude = guided_point_world_frame_lon
                 guided_point_world_frame_msg.altitude = self.current_location.altitude
-                self.setpoint_pub.publish(guided_point_world_frame_msg)
+                self.setpoint_global_pub.publish(guided_point_world_frame_msg)
 
                 # Publish goal and target points for debug purposes
                 if self.debug_mode:
@@ -338,8 +398,6 @@ class ObstacleAvoidance:
                         current_state=self.current_state, current_location=self.current_location,
                         current_yaw=self.current_yaw, current_target=self.current_target,
                         current_waypoint_index=self.current_waypoint_index, target_baselink=goal_baselink_frame)
-
-                if self.debug_mode:
                     end_time = time()
                     rospy.loginfo(
                         f"Time to process avoidance: {1000*(end_time - self.last_input_scan_message_time)} milliseconds.")
