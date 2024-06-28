@@ -44,8 +44,6 @@ class ObstacleAvoidance:
         # Subscribers to mavros and laserscan messages
         rospy.Subscriber("/livox/scan", LaserScan,
                          self.laserScanCallback, queue_size=1)
-        rospy.Subscriber("/mavros/setpoint_raw/target_global",
-                         GlobalPositionTarget, self.targetPointCallback, queue_size=1)
         rospy.Subscriber("/mavros/state", State,
                          self.stateCallback, queue_size=1)
         rospy.Subscriber("/mavros/global_position/global",
@@ -87,26 +85,6 @@ class ObstacleAvoidance:
     ############################################################################
     # region SENSOR CALLBACKS
     ############################################################################
-    def targetPointCallback(self, data):
-        # If we are in AUTO mode, we need to grab the next waypoint in the mission, if we do have a mission
-        if self.waypoints_list:
-            for i, waypoint in enumerate(self.waypoints_list):
-                if waypoint.is_current:
-                    self.current_target = GlobalPositionTarget()
-                    self.current_target.latitude = waypoint.x_lat
-                    self.current_target.longitude = waypoint.y_long
-                    self.current_target.altitude = waypoint.z_alt
-                    self.current_waypoint_index = i
-                    if self.debug_mode:
-                        rospy.logwarn(
-                            f"Target point set to {self.current_target.latitude}, {self.current_target.longitude} in target point callback.")
-                    break
-        if self.debug_mode and self.current_target:
-            x_target_baselink, y_target_baselink = worldToBaselink(
-                target_lat=self.current_target.latitude, target_lon=self.current_target.longitude,
-                current_location=self.current_location, current_yaw=self.current_yaw)
-            rospy.logwarn(
-                f"Target in baselink frame: {x_target_baselink} x, {y_target_baselink} y.")
 
     def stateCallback(self, state):
         self.current_state = state
