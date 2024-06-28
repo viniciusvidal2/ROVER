@@ -74,7 +74,8 @@ class ObstacleAvoidance:
         rospy.wait_for_service('/mavros/set_mode')
         rospy.wait_for_service('/mavros/mission/set_current')
         self.set_mode_service = rospy.ServiceProxy('/mavros/set_mode', SetMode)
-        self.set_current_wp_srv = rospy.ServiceProxy('/mavros/mission/set_current', WaypointSetCurrent)
+        self.set_current_wp_srv = rospy.ServiceProxy(
+            '/mavros/mission/set_current', WaypointSetCurrent)
 
         rospy.loginfo("Obstacle avoidance node initialized.")
         rospy.spin()
@@ -138,7 +139,8 @@ class ObstacleAvoidance:
 
     def homePositionCallback(self, data):
         # Convert the data to UTM just to store in the class our zone number and letter
-        _, _, self.utm_zone_number, self.utm_zone_letter = latLonToUtm(lat=data.geo.latitude, lon=data.geo.longitude)
+        _, _, self.utm_zone_number, self.utm_zone_letter = latLonToUtm(
+            lat=data.geo.latitude, lon=data.geo.longitude)
         # Set the home point so we know what to do if we are returning to launch
         if not self.home_waypoint:
             self.home_waypoint = data
@@ -189,59 +191,30 @@ class ObstacleAvoidance:
                 rospy.logerr(
                     f"Failed to resume original state, setting MANUAL mode: {e}")
 
-    def createAngleTestSequence(self, goal_angle, angle_step, full_test_range):
-        # Lets have a list of angles to test, starting from the goal angle and going in each direction
-        # to try to keep the avoidance behavior, in a best first search manner
-        angles = list()  # [RAD]
-        angles.append(np.radians(goal_angle))
-        for i in range(angle_step, full_test_range, angle_step):
-            angles.append(np.radians(goal_angle + i))
-        for i in range(angle_step, full_test_range, angle_step):
-            angles.append(np.radians(goal_angle - i))
-
-        return angles
-
-    def calculateBestTrajectoryGuidedPoint(self, angle_tests, goal_distance, obstacles_baselink_frame_xy):
-        # Check if the path is clear for each angle, and return the first one that is clear
-        path_found = False
-        chosen_angle = angle_tests[0]
-        for angle in angle_tests:
-            if testPointsInRotatedRectangle(obstacles_baselink_frame_xy, length=goal_distance, width=self.vehicle_width, angle=angle):
-                path_found = True
-                chosen_angle = angle
-                break
-        if self.debug_mode:
-            rospy.loginfo(
-                f"Chosen angle for the trajectory: {np.degrees(chosen_angle)} degrees")
-            rospy.loginfo(
-                f"Distance from center angle: {np.degrees(chosen_angle - angle_tests[0])}")
-            rospy.loginfo(f"Path found: {path_found}")
-
-        # If we found a path, lets calculate the guided point based on the chosen angle using the goal distance
-        if path_found:
-            guided_point_x = goal_distance * np.cos(chosen_angle)
-            guided_point_y = goal_distance * np.sin(chosen_angle)
-            return [guided_point_x, guided_point_y], np.degrees(abs(chosen_angle - angle_tests[0]))
-        else:
-            # Lets try to go back to the previous point
-            rospy.logerr("No path was found to avoid obstacles, going back to previous waypoint in mission, if any!")
-            previous_waypoint_index = self.current_waypoint_index - 1
-            if self.current_waypoint_index == 2:
-                previous_waypoint_index = 0
-            try:
-                response = self.set_current_wp_srv(previous_waypoint_index)
-                if response.success:
-                    rospy.loginfo(f"Successfully set current waypoint to {previous_waypoint_index}")
-                else:
-                    rospy.logwarn(f"Failed to set current waypoint to {previous_waypoint_index}")
-            except rospy.ServiceException as e:
-                rospy.logerr(f"Waypoint set service call failed for index {previous_waypoint_index}: {e}")
-            self.current_waypoint_index = previous_waypoint_index
-            self.current_target = GlobalPositionTarget()
-            self.current_target.latitude = self.waypoints_list[previous_waypoint_index].x_lat
-            self.current_target.longitude = self.waypoints_list[previous_waypoint_index].y_long
-            self.current_target.altitude = self.waypoints_list[previous_waypoint_index].z_alt
-            return [0, 0], np.degrees(abs(angle_tests[-1] - angle_tests[0]))
+    def setCurrentTargetToPreviousWaypoint(self):
+        # Lets try to go back to the previous point
+        rospy.logerr(
+            "No path was found to avoid obstacles, going back to previous waypoint in mission, if any!")
+        previous_waypoint_index = self.current_waypoint_index - 1
+        if self.current_waypoint_index == 2:
+            previous_waypoint_index = 0
+        try:
+            response = self.set_current_wp_srv(previous_waypoint_index)
+            if response.success:
+                rospy.loginfo(
+                    f"Successfully set current waypoint to {previous_waypoint_index}")
+            else:
+                rospy.logwarn(
+                    f"Failed to set current waypoint to {previous_waypoint_index}")
+        except rospy.ServiceException as e:
+            rospy.logerr(
+                f"Waypoint set service call failed for index {previous_waypoint_index}: {e}")
+        # Setting back the target and waypoint index
+        self.current_waypoint_index = previous_waypoint_index
+        self.current_target = GlobalPositionTarget()
+        self.current_target.latitude = self.waypoints_list[previous_waypoint_index].x_lat
+        self.current_target.longitude = self.waypoints_list[previous_waypoint_index].y_long
+        self.current_target.altitude = self.waypoints_list[previous_waypoint_index].z_alt
 
     ############################################################################
     # MAIN CONTROL LOOP CALLBACK
@@ -288,7 +261,7 @@ class ObstacleAvoidance:
                 goal_distance = np.linalg.norm(goal_baselink_frame)
 
                 # Calculate the angles we will test to create the best trajectory
-                angle_tests = self.createAngleTestSequence(
+                angle_tests = createAngleTestSequence(
                     goal_angle=np.degrees(goal_angle_baselink_frame), angle_step=5, full_test_range=90)
                 if self.debug_mode:
                     rospy.loginfo(
@@ -300,14 +273,21 @@ class ObstacleAvoidance:
                 # Isolate the readings that return the obstacles - obstacles are in pairs of (range, angle) in baselink frame
                 obstacles_baselink_frame = [[r, i * scan.angle_increment + scan.angle_min]
                                             for i, r in enumerate(valid_ranges) if r < self.max_obstacle_distance]
-                obstacles_baselink_frame_xy = [laserScanToXY(range=r, angle=a) for r, a in obstacles_baselink_frame]
+                obstacles_baselink_frame_xy = [laserScanToXY(
+                    range=r, angle=a) for r, a in obstacles_baselink_frame]
                 if self.debug_mode:
                     self.obstacles_pub.publish(
                         createObstaclesDebugMarkerArray(obstacles_baselink_frame_xy))
 
                 # Get the best trajectory from the shapes we are observing, starting from the goal point angle
-                guided_point_baselink_frame, guided_to_goal_angle = self.calculateBestTrajectoryGuidedPoint(
-                    angle_tests=angle_tests, goal_distance=goal_distance, obstacles_baselink_frame_xy=obstacles_baselink_frame_xy)
+                guided_point_baselink_frame, guided_to_goal_angle = calculateBestTrajectoryGuidedPoint(
+                    angle_tests=angle_tests, goal_distance=goal_distance, obstacles_baselink_frame_xy=obstacles_baselink_frame_xy,
+                    vehicle_width=self.vehicle_width)
+                if np.linalg.norm(guided_point_baselink_frame) == 0:
+                    rospy.logerr(
+                        "No path was found to avoid obstacles, going back to previous waypoint in mission!")
+                    self.setCurrentTargetToPreviousWaypoint()
+                    return
 
                 # Start avoiding and set the GUIDED mode to send commands
                 # If we should in fact just keep to the goal, meaning no obstacles are in the way, we should go back to AUTO mode
@@ -316,13 +296,7 @@ class ObstacleAvoidance:
                 elif self.current_state.mode == "GUIDED" and guided_to_goal_angle < 5:
                     # Check if there is enough FOV to the goal before changing to AUTO mode, which means we have
                     # now quite left the obstacle behind
-                    safe_fov = 60
-                    we_are_safe = True
-                    for _, angle in obstacles_baselink_frame:
-                        if abs(goal_angle_baselink_frame - angle) < safe_fov/2:
-                            we_are_safe = False
-                            break
-                    if we_are_safe:
+                    if checkSafeFOV(obstacles_baselink_frame, goal_baselink_frame):
                         self.setFlightMode("AUTO")
                         return
 
@@ -349,9 +323,9 @@ class ObstacleAvoidance:
                         height=goal_distance, width=self.vehicle_width, angle=guided_point_angle))
                     # Log the complete loop information
                     logCallbackLoop(
-                        obstacles_baselink_frame=obstacles_baselink_frame_xy, goal_baselink_frame=goal_baselink_frame, 
+                        obstacles_baselink_frame=obstacles_baselink_frame_xy, goal_baselink_frame=goal_baselink_frame,
                         guided_point_baselink_frame=guided_point_baselink_frame,
-                        current_state=self.current_state, current_location=self.current_location, 
+                        current_state=self.current_state, current_location=self.current_location,
                         current_yaw=self.current_yaw, current_target=self.current_target,
                         current_waypoint_index=self.current_waypoint_index, target_baselink=goal_baselink_frame)
 
