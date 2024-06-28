@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import rospy
+import numpy as np
 from geometry_msgs.msg import Point
 from visualization_msgs.msg import Marker, MarkerArray
 from time import time
@@ -206,3 +207,27 @@ def createRobotPathAreaMarker(height, width, angle):
     marker.lifetime = rospy.Duration(2)
 
     return marker
+
+
+def logCallbackLoop(obstacles_baselink_frame, goal_baselink_frame, guided_point_baselink_frame, 
+                    current_state, current_waypoint_index, current_location, current_yaw, current_target, target_baselink):
+        rospy.loginfo(
+            "=================================================================")
+        rospy.loginfo(f"Information for this loop: {time()}")
+        rospy.loginfo(f"Current state: {current_state.mode}")
+        rospy.loginfo(f"Current waypoint index: {current_waypoint_index}")
+        rospy.loginfo(
+            f"Current location: lat {current_location.latitude} lon {current_location.longitude}")
+        rospy.loginfo(f"Current yaw: {np.degrees(current_yaw)} degrees")
+        rospy.loginfo(
+            f"Original goal: lat {current_target.latitude} lon {current_target.longitude}")
+        rospy.loginfo(
+            f"Goal point heard from board in baselink frame: {target_baselink[0]} x, {target_baselink[1]} y")
+        rospy.loginfo(
+            f"Goal direction in baselink frame: {goal_baselink_frame}")
+        rospy.loginfo(
+            f"Guided point in baselink frame: {guided_point_baselink_frame}")
+        for i, obstacle in enumerate(obstacles_baselink_frame):
+            rospy.loginfo(f"Obstacle {i} in baselink frame: {obstacle}")
+        rospy.loginfo(
+            "=================================================================")

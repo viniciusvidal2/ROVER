@@ -81,37 +81,6 @@ class ObstacleAvoidance:
         rospy.spin()
 
     ############################################################################
-    # LOGGING
-    ############################################################################
-
-    def logCallbackLoop(self, obstacles_baselink_frame, goal_baselink_frame, guided_point_baselink_frame):
-        rospy.loginfo(
-            "=================================================================")
-        rospy.loginfo(f"Information for this loop: {time()}")
-        rospy.loginfo(f"Current state: {self.current_state.mode}")
-        rospy.loginfo(
-            f"Current location: lat {self.current_location.latitude} lon {self.current_location.longitude}")
-        rospy.loginfo(f"Current yaw: {np.degrees(self.current_yaw)} degrees")
-        rospy.loginfo(
-            f"Original target: lat {self.current_target.latitude} lon {self.current_target.longitude}")
-        rospy.loginfo(
-            f"Goal direction in baselink frame: {goal_baselink_frame}")
-        rospy.loginfo(
-            f"Guided point in baselink frame: {guided_point_baselink_frame}")
-        x_target_baselink, y_target_baselink = self.worldToBaselink(
-            target_lat=self.current_target.latitude, target_lon=self.current_target.longitude)
-        rospy.loginfo(
-            f"Target point heard from board in baselink frame: {x_target_baselink} x, {y_target_baselink} y")
-        for i, obstacle in enumerate(obstacles_baselink_frame):
-            rospy.loginfo(f"Obstacle {i} in baselink frame: {obstacle}")
-        rospy.loginfo("Waypoints in baselink frame:")
-        for i, waypoint in enumerate(self.waypoints_list):
-            rospy.loginfo(
-                f"Waypoint {i} in baselink frame: {self.worldToBaselink(target_lat=waypoint.x_lat, target_lon=waypoint.y_long)}")
-        rospy.loginfo(
-            "=================================================================")
-
-    ############################################################################
     # FRAME CONVERTION METHODS
     ############################################################################
 
@@ -433,8 +402,12 @@ class ObstacleAvoidance:
                     self.robot_path_area_pub.publish(createRobotPathAreaMarker(
                         height=goal_distance, width=self.vehicle_width, angle=guided_point_angle))
                     # Log the complete loop information
-                    self.logCallbackLoop(
-                        obstacles_baselink_frame=obstacles_baselink_frame_xy, goal_baselink_frame=goal_baselink_frame, guided_point_baselink_frame=guided_point_baselink_frame)
+                    logCallbackLoop(
+                        obstacles_baselink_frame=obstacles_baselink_frame_xy, goal_baselink_frame=goal_baselink_frame, 
+                        guided_point_baselink_frame=guided_point_baselink_frame,
+                        current_state=self.current_state, current_location=self.current_location, 
+                        current_yaw=self.current_yaw, current_target=self.current_target,
+                        current_waypoint_index=self.current_waypoint_index, target_baselink=goal_baselink_frame)
 
                 if self.debug_mode:
                     end_time = time()
