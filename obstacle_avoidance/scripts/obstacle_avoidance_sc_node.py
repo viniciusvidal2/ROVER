@@ -8,10 +8,9 @@ from sensor_msgs.msg import LaserScan
 from visualization_msgs.msg import MarkerArray
 import numpy as np
 from time import time
-import utm
-import os
 from log_debug import *
 from collision_lib import *
+from frame_convertions import *
 
 
 class ObstacleAvoidance:
@@ -81,62 +80,6 @@ class ObstacleAvoidance:
         rospy.spin()
 
     ############################################################################
-    # FRAME CONVERTION METHODS
-    ############################################################################
-
-    def latLonToUtm(self, lat, lon):
-        utm_e, utm_n, self.utm_zone_number, self.utm_zone_letter = utm.from_latlon(
-            lat, lon)
-
-        return utm_e, utm_n
-
-    def utmToLatLon(self, utm_e, utm_n):
-        lat, lon = utm.to_latlon(
-            utm_e, utm_n, self.utm_zone_number, self.utm_zone_letter)
-
-        return lat, lon
-
-    def laserScanToXY(self, range, angle):
-        x_baselink = range*np.cos(angle)
-        y_baselink = range*np.sin(angle)
-
-        return x_baselink, y_baselink
-
-    def baselinkToWorld(self, x_baselink, y_baselink):
-        # Get current location from latlon to UTM coordinates
-        utm_east, utm_north = self.latLonToUtm(
-            lat=self.current_location.latitude, lon=self.current_location.longitude)
-        # Create rotation from baselink to world based on the current yaw and apply
-        world_angle_baselink = np.pi/2 - self.current_yaw
-        ca = np.cos(world_angle_baselink)
-        sa = np.sin(world_angle_baselink)
-        world_R_baselink = np.array([[ca, -sa], [sa, ca]])
-        d_utm = world_R_baselink @ np.array([x_baselink, y_baselink])
-        # Add to the current location in UTM
-        utm_output = np.array([utm_east, utm_north]) + d_utm
-
-        return self.utmToLatLon(utm_e=utm_output[0], utm_n=utm_output[1])
-
-    def worldToBaselink(self, target_lat, target_lon):
-        # Get current location from latlon to UTM coordinates
-        utm_east, utm_north = self.latLonToUtm(
-            lat=self.current_location.latitude, lon=self.current_location.longitude)
-        # Get the target location from latlon to UTM coordinates
-        utm_target_east, utm_target_north = self.latLonToUtm(
-            lat=target_lat, lon=target_lon)
-        # Calculate the offset from the current location to the target location in UTM frame
-        d_utm = np.array([utm_target_east, utm_target_north]
-                         ) - np.array([utm_east, utm_north])
-        # Create rotation from world to baselink based on the current yaw and apply
-        baselink_angle_world = self.current_yaw - np.pi/2
-        ca = np.cos(baselink_angle_world)
-        sa = np.sin(baselink_angle_world)
-        baselink_R_world = np.array([[ca, -sa], [sa, ca]])
-        target_baselink_frame = baselink_R_world @ d_utm
-
-        return target_baselink_frame[0], target_baselink_frame[1]
-
-    ############################################################################
     # SENSOR CALLBACKS
     ############################################################################
     def targetPointCallback(self, data):
@@ -154,8 +97,9 @@ class ObstacleAvoidance:
                             f"Target point set to {self.current_target.latitude}, {self.current_target.longitude} in target point callback.")
                     break
         if self.debug_mode and self.current_target:
-            x_target_baselink, y_target_baselink = self.worldToBaselink(
-                target_lat=self.current_target.latitude, target_lon=self.current_target.longitude)
+            x_target_baselink, y_target_baselink = worldToBaselink(
+                target_lat=self.current_target.latitude, target_lon=self.current_target.longitude,
+                current_location=self.current_location, current_yaw=self.current_yaw)
             rospy.logwarn(
                 f"Target in baselink frame: {x_target_baselink} x, {y_target_baselink} y.")
 
@@ -194,7 +138,7 @@ class ObstacleAvoidance:
 
     def homePositionCallback(self, data):
         # Convert the data to UTM just to store in the class our zone number and letter
-        _, _ = self.latLonToUtm(lat=data.geo.latitude, lon=data.geo.longitude)
+        _, _, self.utm_zone_number, self.utm_zone_letter = latLonToUtm(lat=data.geo.latitude, lon=data.geo.longitude)
         # Set the home point so we know what to do if we are returning to launch
         if not self.home_waypoint:
             self.home_waypoint = data
@@ -336,8 +280,9 @@ class ObstacleAvoidance:
             # In case there is a target waypoint, we can calculate the avoidance
             if self.current_target:
                 # Grab the goal direction in baselink frame
-                goal_baselink_frame = self.worldToBaselink(
-                    target_lat=self.current_target.latitude, target_lon=self.current_target.longitude)
+                goal_baselink_frame = worldToBaselink(
+                    target_lat=self.current_target.latitude, target_lon=self.current_target.longitude,
+                    current_location=self.current_location, current_yaw=self.current_yaw)
                 goal_angle_baselink_frame = np.arctan2(
                     goal_baselink_frame[1], goal_baselink_frame[0])
                 goal_distance = np.linalg.norm(goal_baselink_frame)
@@ -355,8 +300,7 @@ class ObstacleAvoidance:
                 # Isolate the readings that return the obstacles - obstacles are in pairs of (range, angle) in baselink frame
                 obstacles_baselink_frame = [[r, i * scan.angle_increment + scan.angle_min]
                                             for i, r in enumerate(valid_ranges) if r < self.max_obstacle_distance]
-                obstacles_baselink_frame_xy = [self.laserScanToXY(
-                    range=r, angle=a) for r, a in obstacles_baselink_frame]
+                obstacles_baselink_frame_xy = [laserScanToXY(range=r, angle=a) for r, a in obstacles_baselink_frame]
                 if self.debug_mode:
                     self.obstacles_pub.publish(
                         createObstaclesDebugMarkerArray(obstacles_baselink_frame_xy))
@@ -383,8 +327,10 @@ class ObstacleAvoidance:
                         return
 
                 # Convert the travel point to world frame
-                guided_point_world_frame_lat, guided_point_world_frame_lon = self.baselinkToWorld(
-                    x_baselink=guided_point_baselink_frame[0], y_baselink=guided_point_baselink_frame[1])
+                guided_point_world_frame_lat, guided_point_world_frame_lon = baselinkToWorld(
+                    xy_baselink=np.asarray(guided_point_baselink_frame),
+                    current_location=self.current_location, current_yaw=self.current_yaw,
+                    zn=self.utm_zone_number, zl=self.utm_zone_letter)
 
                 # Send the new point to the vehicle
                 guided_point_world_frame_msg = GlobalPositionTarget()
