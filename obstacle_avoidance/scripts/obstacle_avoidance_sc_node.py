@@ -9,7 +9,6 @@ from visualization_msgs.msg import MarkerArray
 import numpy as np
 from time import time
 import utm
-import logging
 import os
 from log_debug import *
 from collision_lib import *
@@ -41,21 +40,6 @@ class ObstacleAvoidance:
         self.utm_zone_letter = None  # UTM zone letter
         self.vehicle_width = 1.5  # [m]
         self.critical_zone_radius = 1.0  # [m]
-
-        # If the image and logging folders are not created, make sure we create it
-        if self.debug_mode:
-            self.debug_folder = os.path.join(
-                os.getenv("HOME"), "obstacle_avoidance_debug")
-            if not os.path.exists(os.path.join(self.debug_folder, "logs")):
-                os.makedirs(os.path.join(self.debug_folder, "logs"))
-            # Logging setup
-            logging.basicConfig(
-                filename=os.path.join(
-                    self.debug_folder, f"logs/run_{getCurrentTimeAsString()}.log"),
-                level=logging.INFO,
-                format='%(asctime)s - %(levelname)s - %(message)s',
-                datefmt='%Y-%m-%d %H:%M:%S'
-            )
 
         # Subscribers to mavros and laserscan messages
         rospy.Subscriber("/livox/scan", LaserScan,
@@ -94,7 +78,6 @@ class ObstacleAvoidance:
         self.set_current_wp_srv = rospy.ServiceProxy('/mavros/mission/set_current', WaypointSetCurrent)
 
         rospy.loginfo("Obstacle avoidance node initialized.")
-        logging.info("Obstacle avoidance node initialized.")
         rospy.spin()
 
     ############################################################################
@@ -102,21 +85,6 @@ class ObstacleAvoidance:
     ############################################################################
 
     def logCallbackLoop(self, obstacles_baselink_frame, goal_baselink_frame, guided_point_baselink_frame):
-        # Log file
-        logging.debug(f"Information for this loop: {time()}")
-        logging.debug(f"Current state: {self.current_state.mode}")
-        logging.debug(
-            f"Current location: lat {self.current_location.latitude} lon {self.current_location.longitude}")
-        logging.debug(f"Current yaw: {np.degrees(self.current_yaw)} degrees")
-        logging.debug(
-            f"Original target: lat {self.current_target.latitude} lon {self.current_target.longitude}")
-        logging.debug(
-            f"Goal direction in baselink frame: {goal_baselink_frame}")
-        logging.debug(
-            f"Guided point in baselink frame: {guided_point_baselink_frame}")
-        for i, obstacle in enumerate(obstacles_baselink_frame):
-            logging.debug(f"Obstacle {i} in baselink frame: {obstacle}")
-        # Printing
         rospy.loginfo(
             "=================================================================")
         rospy.loginfo(f"Information for this loop: {time()}")
@@ -221,8 +189,6 @@ class ObstacleAvoidance:
                 target_lat=self.current_target.latitude, target_lon=self.current_target.longitude)
             rospy.logwarn(
                 f"Target in baselink frame: {x_target_baselink} x, {y_target_baselink} y.")
-            rospy.loginfo(
-                f"This is the current state: {self.current_state.mode}")
 
     def stateCallback(self, state):
         self.current_state = state
@@ -233,15 +199,11 @@ class ObstacleAvoidance:
     def compassCallback(self, data):
         # Convert compass heading from degrees to radians
         self.current_yaw = np.radians(data.data)  # [RAD]
-        if self.debug_mode:
-            rospy.logwarn(
-                f"Current yaw: {np.degrees(self.current_yaw)} degrees")
 
     def missionWaypointsCallback(self, data):
         # Get the list of waypoints in the mission
         self.waypoints_list = data.waypoints
         if len(self.waypoints_list) == 0:
-            rospy.logwarn("No waypoints in the mission.")
             return
         # If the last waypoint coordinates are 0, that means it is a return to launch waypoint, so we add the home waypoint values to this waypoint
         if self.waypoints_list[-1].x_lat == 0 and self.waypoints_list[-1].y_long == 0 and self.home_waypoint:
@@ -360,7 +322,7 @@ class ObstacleAvoidance:
                 else:
                     rospy.logwarn(f"Failed to set current waypoint to {previous_waypoint_index}")
             except rospy.ServiceException as e:
-                rospy.logerr(f"Waypoint set service call failed for inde {previous_waypoint_index}: {e}")
+                rospy.logerr(f"Waypoint set service call failed for index {previous_waypoint_index}: {e}")
             self.current_waypoint_index = previous_waypoint_index
             self.current_target = GlobalPositionTarget()
             self.current_target.latitude = self.waypoints_list[previous_waypoint_index].x_lat
@@ -395,11 +357,6 @@ class ObstacleAvoidance:
             if self.debug_mode:
                 rospy.logwarn(
                     f"Obstacle detected in less than {self.max_obstacle_distance}m!")
-                if self.current_target:
-                    rospy.logwarn(
-                        f"Current target: {self.current_target.latitude}, {self.current_target.longitude}")
-                else:
-                    rospy.logwarn("No target set yet.")
 
             # Lets only proceed if there is enough time since we last sent a guided point to the vehicle
             # If inside the critical zone, always act
@@ -443,9 +400,6 @@ class ObstacleAvoidance:
                 # If we should in fact just keep to the goal, meaning no obstacles are in the way, we should go back to AUTO mode
                 if self.current_state.mode == "AUTO" and guided_to_goal_angle > 5:
                     self.setFlightMode("GUIDED")
-                    if self.debug_mode:
-                        rospy.logwarn(
-                            "Avoiding obstacles by setting GUIDED mode ...")
                 elif self.current_state.mode == "GUIDED" and guided_to_goal_angle < 5:
                     # Check if there is enough FOV to the goal before changing to AUTO mode, which means we have
                     # now quite left the obstacle behind
@@ -457,9 +411,7 @@ class ObstacleAvoidance:
                             break
                     if we_are_safe:
                         self.setFlightMode("AUTO")
-                        if self.debug_mode:
-                            rospy.logwarn(
-                                "No obstacles in the way, resuming AUTO mode ...")
+                        return
 
                 # Convert the travel point to world frame
                 guided_point_world_frame_lat, guided_point_world_frame_lon = self.baselinkToWorld(
@@ -490,9 +442,6 @@ class ObstacleAvoidance:
                         f"Time to process avoidance: {1000*(end_time - self.last_input_scan_message_time)} milliseconds.")
 
         elif self.current_state.mode == "GUIDED":
-            if self.debug_mode:
-                rospy.logwarn(
-                    "No obstacle observed nearby, resuming original mission ...")
             self.resumeOriginalState()
 
 
