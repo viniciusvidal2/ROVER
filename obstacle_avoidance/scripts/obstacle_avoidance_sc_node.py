@@ -362,6 +362,10 @@ class ObstacleAvoidance:
             except rospy.ServiceException as e:
                 rospy.logerr(f"Waypoint set service call failed for inde {previous_waypoint_index}: {e}")
             self.current_waypoint_index = previous_waypoint_index
+            self.current_target = GlobalPositionTarget()
+            self.current_target.latitude = self.waypoints_list[previous_waypoint_index].x_lat
+            self.current_target.longitude = self.waypoints_list[previous_waypoint_index].y_long
+            self.current_target.altitude = self.waypoints_list[previous_waypoint_index].z_alt
             return [0, 0], np.degrees(abs(angle_tests[-1] - angle_tests[0]))
 
     ############################################################################
@@ -399,7 +403,7 @@ class ObstacleAvoidance:
 
             # Lets only proceed if there is enough time since we last sent a guided point to the vehicle
             # If inside the critical zone, always act
-            if time() - self.last_guided_point_time < self.guided_point_sending_interval and closest_obstacle_distance > self.critical_zone_radius:
+            if time() - self.last_guided_point_time < self.guided_point_sending_interval:
                 return
             self.last_guided_point_time = time()
 
@@ -414,7 +418,7 @@ class ObstacleAvoidance:
 
                 # Calculate the angles we will test to create the best trajectory
                 angle_tests = self.createAngleTestSequence(
-                    goal_angle=np.degrees(goal_angle_baselink_frame), angle_step=10, full_test_range=90)
+                    goal_angle=np.degrees(goal_angle_baselink_frame), angle_step=5, full_test_range=90)
                 if self.debug_mode:
                     rospy.loginfo(
                         f"Goal direction in baselink frame: {goal_baselink_frame}")
