@@ -14,6 +14,9 @@ from frame_convertions import *
 
 
 class ObstacleAvoidance:
+    ############################################################################
+    # region CONSTRUCTOR
+    ############################################################################
     def __init__(self):
         rospy.init_node("obstacle_avoidance_node", anonymous=False)
 
@@ -80,8 +83,9 @@ class ObstacleAvoidance:
         rospy.loginfo("Obstacle avoidance node initialized.")
         rospy.spin()
 
+    # endregion
     ############################################################################
-    # SENSOR CALLBACKS
+    # region SENSOR CALLBACKS
     ############################################################################
     def targetPointCallback(self, data):
         # If we are in AUTO mode, we need to grab the next waypoint in the mission, if we do have a mission
@@ -158,8 +162,9 @@ class ObstacleAvoidance:
                 "No data was received in the last 4 seconds. Returning to original state ...")
             self.resumeOriginalState()
 
+    # endregion
     ############################################################################
-    # CONTROL FUNCTIONS
+    # region CONTROL FUNCTIONS
     ############################################################################
     def setFlightMode(self, mode):
         try:
@@ -216,8 +221,9 @@ class ObstacleAvoidance:
         self.current_target.longitude = self.waypoints_list[previous_waypoint_index].y_long
         self.current_target.altitude = self.waypoints_list[previous_waypoint_index].z_alt
 
+    # endregion
     ############################################################################
-    # MAIN CONTROL LOOP CALLBACK
+    # region MAIN CONTROL LOOP CALLBACK
     ############################################################################
     def laserScanCallback(self, scan):
         """
@@ -336,6 +342,8 @@ class ObstacleAvoidance:
 
         elif self.current_state.mode == "GUIDED":
             self.resumeOriginalState()
+
+    # endregion
 
 
 if __name__ == "__main__":
