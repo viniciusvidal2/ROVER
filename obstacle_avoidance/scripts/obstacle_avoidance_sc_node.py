@@ -38,8 +38,6 @@ class ObstacleAvoidance:
         self.waypoints_list = None  # list of waypoints in the autonomous mission
         self.current_waypoint_index = -1  # Autonomous mission waypoint we are tracking
         self.current_target = None  # target waypoint data in AUTO mode
-        self.utm_zone_number = None  # UTM zone number
-        self.utm_zone_letter = None  # UTM zone letter
         self.vehicle_width = 1.5  # [m]
         self.critical_zone_radius = 1.0  # [m]
 
@@ -67,7 +65,7 @@ class ObstacleAvoidance:
         self.setpoint_global_pub = rospy.Publisher(
             '/mavros/setpoint_raw/global', GlobalPositionTarget, queue_size=1)
         self.setpoint_local_pub = rospy.Publisher(
-            '/mavros/setpoint_raw/local', GlobalPositionTarget, queue_size=1)
+            '/mavros/setpoint_raw/local', PositionTarget, queue_size=1)
         self.obstacles_pub = rospy.Publisher(
             '/obstacle_avoidance/obstacles', MarkerArray, queue_size=1)
         self.goal_guided_point_pub = rospy.Publisher(
@@ -82,7 +80,7 @@ class ObstacleAvoidance:
         self.set_current_wp_srv = rospy.ServiceProxy(
             '/mavros/mission/set_current', WaypointSetCurrent)
 
-        rospy.loginfo("Obstacle avoidance node initialized.")
+        rospy.logwarn("Obstacle avoidance node initialized.")
         rospy.spin()
 
     # endregion
@@ -139,14 +137,11 @@ class ObstacleAvoidance:
                     self.current_target.altitude = waypoint.z_alt
                     self.current_waypoint_index = i
                     if self.debug_mode:
-                        rospy.loginfo(
+                        rospy.logwarn(
                             f"Target point set to {self.current_target.latitude}, {self.current_target.longitude} in mission callback.")
                     break
 
     def homePositionCallback(self, data):
-        # Convert the data to UTM just to store in the class our zone number and letter
-        _, _, self.utm_zone_number, self.utm_zone_letter = latLonToUtm(
-            lat=data.geo.latitude, lon=data.geo.longitude)
         # Set the home point so we know what to do if we are returning to launch
         if not self.home_waypoint:
             self.home_waypoint = data
@@ -154,7 +149,7 @@ class ObstacleAvoidance:
             if self.home_waypoint.geo.latitude != data.geo.latitude or self.home_waypoint.geo.longitude != data.geo.longitude:
                 self.home_waypoint = data
         if self.debug_mode and self.home_waypoint:
-            rospy.loginfo(
+            rospy.logwarn(
                 f"Home waypoint set to {self.home_waypoint.geo.latitude}, {self.home_waypoint.geo.longitude}")
 
     def travelStateCheckCallback(self, event):
@@ -172,13 +167,13 @@ class ObstacleAvoidance:
         try:
             response = self.set_mode_service(custom_mode=mode)
             if response.mode_sent:
-                rospy.loginfo(f"Changing navigation mode to {mode}...")
+                rospy.logwarn(f"Changing navigation mode to {mode}...")
                 while self.current_state.mode != mode:
                     response = self.set_mode_service(custom_mode=mode)
-                    rospy.loginfo(
+                    rospy.logwarn(
                         "Waiting for mode change request confirmation ...")
                     rospy.sleep(0.1)
-                rospy.loginfo(f"Mode {mode} activated.")
+                rospy.logwarn(f"Mode {mode} activated.")
         except rospy.ServiceException as e:
             rospy.logerr(f"Failed to change navigation mode to {mode}: {e}")
 
@@ -192,7 +187,7 @@ class ObstacleAvoidance:
         if self.current_state.mode == "GUIDED":
             try:
                 self.setFlightMode("AUTO")
-                rospy.loginfo(f"Resuming mission in AUTO mode.")
+                rospy.logwarn(f"Resuming mission in AUTO mode.")
             except rospy.ServiceException as e:
                 self.setFlightMode("MANUAL")
                 rospy.logerr(
@@ -208,7 +203,7 @@ class ObstacleAvoidance:
         try:
             response = self.set_current_wp_srv(previous_waypoint_index)
             if response.success:
-                rospy.loginfo(
+                rospy.logwarn(
                     f"Successfully set current waypoint to {previous_waypoint_index}")
             else:
                 rospy.logwarn(
@@ -247,21 +242,22 @@ class ObstacleAvoidance:
             | PositionTarget.IGNORE_AFX | PositionTarget.IGNORE_AFY | PositionTarget.IGNORE_AFZ \
             | PositionTarget.IGNORE_YAW_RATE
 
-        # Publish the setpoint
         self.setpoint_local_pub.publish(setpoint)
 
     def sendGuidedPointGlobalFrame(self, guided_point_baselink_frame):
         # Convert the travel point to world frame
         guided_point_world_frame_lat, guided_point_world_frame_lon = baselinkToWorld(
             xy_baselink=np.asarray(guided_point_baselink_frame),
-            current_location=self.current_location, current_yaw=self.current_yaw,
-            zn=self.utm_zone_number, zl=self.utm_zone_letter)
+            current_lat=self.current_location.latitude, current_lon=self.current_location.longitude, current_yaw=self.current_yaw)
 
         # Send the new point to the vehicle
         guided_point_world_frame_msg = GlobalPositionTarget()
+        guided_point_world_frame_msg.header = Header()
+        guided_point_world_frame_msg.header.stamp = rospy.Time.now()
         guided_point_world_frame_msg.latitude = guided_point_world_frame_lat
         guided_point_world_frame_msg.longitude = guided_point_world_frame_lon
         guided_point_world_frame_msg.altitude = self.current_location.altitude
+
         self.setpoint_global_pub.publish(guided_point_world_frame_msg)
 
     # endregion
@@ -280,8 +276,7 @@ class ObstacleAvoidance:
         self.last_input_scan_message_time = time()
 
         # Avoiding the callback if the conditions are not met
-        if not scan.ranges or self.current_state.mode == "MANUAL" or not self.current_target \
-                or not self.current_location or not self.utm_zone_letter or not self.utm_zone_number:
+        if not scan.ranges or self.current_state.mode == "MANUAL" or not self.current_target or not self.current_location or not self.home_waypoint:
             return
 
         # Make sure the scan values are valid before doing any math
@@ -322,10 +317,10 @@ class ObstacleAvoidance:
                     goal_angle=np.degrees(goal_angle_baselink_frame), angle_step=5, full_test_range=90) if not critical_zone \
                     else createAngleTestSequence(goal_angle=0, angle_step=5, full_test_range=90)
                 if self.debug_mode:
-                    rospy.loginfo(
+                    rospy.logwarn(
                         f"Goal direction in baselink frame: {goal_baselink_frame}")
-                    rospy.loginfo(f"Goal distance: {goal_distance} m")
-                    rospy.loginfo(
+                    rospy.logwarn(f"Goal distance: {goal_distance} m")
+                    rospy.logwarn(
                         f"Goal angle in baselink frame: {np.degrees(goal_angle_baselink_frame)} degrees")
 
                 # Isolate the readings that return the obstacles - obstacles are in pairs of (range, angle) in baselink frame
@@ -341,10 +336,13 @@ class ObstacleAvoidance:
                 guided_point_baselink_frame, guided_to_goal_angle = calculateBestTrajectoryGuidedPoint(
                     angle_tests=angle_tests, goal_distance=goal_distance, obstacles_baselink_frame_xy=obstacles_baselink_frame_xy,
                     vehicle_width=self.vehicle_width)
+
+                # If we have an issue finding this trajectory, we should go back to the previous waypoint
                 if np.linalg.norm(guided_point_baselink_frame) == 0:
                     rospy.logerr(
                         "No path was found to avoid obstacles, going back to previous waypoint in mission!")
                     self.setCurrentTargetToPreviousWaypoint()
+                    self.setFlightMode("AUTO")
                     return
 
                 # Start avoiding and set the GUIDED mode to send commands
@@ -370,19 +368,6 @@ class ObstacleAvoidance:
                     self.sendGuidedPointGlobalFrame(
                         guided_point_baselink_frame)
 
-                # Convert the travel point to world frame
-                guided_point_world_frame_lat, guided_point_world_frame_lon = baselinkToWorld(
-                    xy_baselink=np.asarray(guided_point_baselink_frame),
-                    current_location=self.current_location, current_yaw=self.current_yaw,
-                    zn=self.utm_zone_number, zl=self.utm_zone_letter)
-
-                # Send the new point to the vehicle
-                guided_point_world_frame_msg = GlobalPositionTarget()
-                guided_point_world_frame_msg.latitude = guided_point_world_frame_lat
-                guided_point_world_frame_msg.longitude = guided_point_world_frame_lon
-                guided_point_world_frame_msg.altitude = self.current_location.altitude
-                self.setpoint_global_pub.publish(guided_point_world_frame_msg)
-
                 # Publish goal and target points for debug purposes
                 if self.debug_mode:
                     self.goal_guided_point_pub.publish(createGoalGuidedPointDebugMarkerArray(
@@ -399,7 +384,7 @@ class ObstacleAvoidance:
                         current_yaw=self.current_yaw, current_target=self.current_target,
                         current_waypoint_index=self.current_waypoint_index, target_baselink=goal_baselink_frame)
                     end_time = time()
-                    rospy.loginfo(
+                    rospy.logwarn(
                         f"Time to process avoidance: {1000*(end_time - self.last_input_scan_message_time)} milliseconds.")
 
         elif self.current_state.mode == "GUIDED":

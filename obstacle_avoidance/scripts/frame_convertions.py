@@ -29,10 +29,10 @@ def laserScanToXY(range, angle):
     return x_baselink, y_baselink
 
 
-def baselinkToWorld(xy_baselink, current_location, current_yaw, zn, zl):
+def baselinkToWorld(xy_baselink, current_lat, current_lon, current_yaw):
     # Get current location from latlon to UTM coordinates
-    utm_east, utm_north, _, _ = latLonToUtm(
-        lat=current_location.latitude, lon=current_location.longitude)
+    utm_east, utm_north, zn, zl = latLonToUtm(
+        lat=current_lat, lon=current_lon)
     # Create rotation from baselink to world based on the current yaw and apply
     world_angle_baselink = np.pi/2 - current_yaw
     world_R_baselink = rotationMatrix(world_angle_baselink)
