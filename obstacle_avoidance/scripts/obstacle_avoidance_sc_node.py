@@ -196,7 +196,10 @@ class ObstacleAvoidance:
         self.current_target.longitude = self.waypoints_list[previous_waypoint_index].y_long
         self.current_target.altitude = self.waypoints_list[previous_waypoint_index].z_alt
 
-    def sendGuidedPointBodyFrame(self, guided_point_baselink_frame, guided_point_angle):
+    def sendGuidedPointBodyFrame(self, guided_point_baselink_frame):
+        # Calculate guided point angle:
+        angle = -np.arctan2(guided_point_baselink_frame[1], guided_point_baselink_frame[0])
+        
         setpoint = PositionTarget()
         setpoint.header = Header()
         setpoint.header.stamp = rospy.Time.now()
@@ -213,7 +216,7 @@ class ObstacleAvoidance:
         setpoint.acceleration_or_force.x = 0.0
         setpoint.acceleration_or_force.y = 0.0
         setpoint.acceleration_or_force.z = 0.0
-        setpoint.yaw = -guided_point_angle
+        setpoint.yaw = angle
         setpoint.yaw_rate = 0.0
         # Specify which fields are valid
         setpoint.type_mask = PositionTarget.IGNORE_VX | PositionTarget.IGNORE_VY | PositionTarget.IGNORE_VZ \
