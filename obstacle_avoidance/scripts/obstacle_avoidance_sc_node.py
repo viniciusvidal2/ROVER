@@ -38,7 +38,7 @@ class ObstacleAvoidance:
         self.waypoints_list = None  # list of waypoints in the autonomous mission
         self.current_waypoint_index = -1  # Autonomous mission waypoint we are tracking
         self.current_target = None  # target waypoint data in AUTO mode
-        self.vehicle_width = 1.5  # [m]
+        self.vehicle_width = 1.0  # [m]
         self.critical_zone_radius = 1.0  # [m]
 
         # Subscribers to mavros and laserscan messages
@@ -179,9 +179,6 @@ class ObstacleAvoidance:
         if self.current_waypoint_index < 3:
             return
 
-        # Lets try to go back to the previous point
-        rospy.logerr(
-            "No path was found to avoid obstacles, going back to previous waypoint in mission, if any!")
         previous_waypoint_index = self.current_waypoint_index - 1
         if self.current_waypoint_index == 2:
             previous_waypoint_index = 0
@@ -333,6 +330,7 @@ class ObstacleAvoidance:
                 if np.linalg.norm(guided_point_baselink_frame) == 0:
                     rospy.logerr(
                         "No path was found to avoid obstacles, going back to previous waypoint in mission!")
+                    rospy.logerr(f"Angle tests: {[np.degrees(a) for a in angle_tests]}")
                     self.setCurrentTargetToPreviousWaypoint()
                     self.setFlightMode("AUTO")
                     return
@@ -374,7 +372,8 @@ class ObstacleAvoidance:
                         guided_point_baselink_frame=guided_point_baselink_frame,
                         current_state=self.current_state, current_location=self.current_location,
                         current_yaw=self.current_yaw, current_target=self.current_target,
-                        current_waypoint_index=self.current_waypoint_index, target_baselink=goal_baselink_frame)
+                        current_waypoint_index=self.current_waypoint_index, target_baselink=goal_baselink_frame,
+                        critical_zone=critical_zone)
                     end_time = time()
                     rospy.logwarn(
                         f"Time to process avoidance: {1000*(end_time - self.last_input_scan_message_time)} milliseconds.")

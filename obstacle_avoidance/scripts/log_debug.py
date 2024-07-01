@@ -210,7 +210,8 @@ def createRobotPathAreaMarker(height, width, angle):
 
 
 def logCallbackLoop(obstacles_baselink_frame, goal_baselink_frame, guided_point_baselink_frame, 
-                    current_state, current_waypoint_index, current_location, current_yaw, current_target, target_baselink):
+                    current_state, current_waypoint_index, current_location, current_yaw, current_target, target_baselink,
+                    critical_zone):
         rospy.loginfo(
             "=================================================================")
         rospy.loginfo(f"Information for this loop: {time()}")
@@ -229,5 +230,6 @@ def logCallbackLoop(obstacles_baselink_frame, goal_baselink_frame, guided_point_
             f"Guided point in baselink frame: {guided_point_baselink_frame}")
         for i, obstacle in enumerate(obstacles_baselink_frame):
             rospy.loginfo(f"Obstacle {i} in baselink frame: {obstacle}")
+        rospy.loginfo(f"Critical zone? {"Yes" if critical_zone else "No"}")
         rospy.loginfo(
             "=================================================================")
