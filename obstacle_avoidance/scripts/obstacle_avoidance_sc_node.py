@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import rospy
 from mavros_msgs.msg import State, GlobalPositionTarget, WaypointList, HomePosition, PositionTarget
-from mavros_msgs.srv import SetMode, WaypointSetCurrent
+from mavros_msgs.srv import SetMode, WaypointSetCurrent, CommandTOL
 from sensor_msgs.msg import NavSatFix, LaserScan
 from std_msgs.msg import Float64, Header
 from sensor_msgs.msg import LaserScan
@@ -77,6 +77,7 @@ class ObstacleAvoidance:
         self.set_mode_service = rospy.ServiceProxy('/mavros/set_mode', SetMode)
         self.set_current_wp_srv = rospy.ServiceProxy(
             '/mavros/mission/set_current', WaypointSetCurrent)
+        self.command_tol_srv = rospy.ServiceProxy('/mavros/cmd/command', CommandTOL)
 
         rospy.logwarn("Obstacle avoidance node initialized.")
         rospy.spin()
@@ -176,32 +177,41 @@ class ObstacleAvoidance:
                     f"Failed to resume original state, setting MANUAL mode: {e}")
 
     def setCurrentTargetToPreviousWaypoint(self):
-        # For now, only work if we are already following the second waypoint
+        # If first waypoint, we must go back to the home waypoint with RTL
+        # If not, just set back the previous waypoint as the current one
         if self.current_waypoint_index < 3:
-            return
+            self.current_waypoint_index = 0
+            self.current_target = GlobalPositionTarget()
+            self.current_target.latitude = self.home_waypoint.geo.latitude
+            self.current_target.longitude = self.home_waypoint.geo.longitude
+            self.current_target.altitude = self.home_waypoint.geo.altitude
+            self.setFlightMode("GUIDED")
+            try:
+                rospy.wait_for_service('/mavros/cmd/command', timeout=10)
+                self.command_tol_srv(command=20)  # 20 is the command code for RTL
+            except rospy.ServiceException as e:
+                rospy.logerr(f"Failed to send RTL command: {e}")
 
-        previous_waypoint_index = self.current_waypoint_index - 1
-        if self.current_waypoint_index == 2:
-            previous_waypoint_index = 0
-        elif previous_waypoint_index < 0:
-            previous_waypoint_index = 0
-        try:
-            response = self.set_current_wp_srv(previous_waypoint_index)
-            if response.success:
-                rospy.logwarn(
-                    f"Successfully set current waypoint to {previous_waypoint_index}")
-            else:
-                rospy.logwarn(
-                    f"Failed to set current waypoint to {previous_waypoint_index}")
-        except rospy.ServiceException as e:
-            rospy.logerr(
-                f"Waypoint set service call failed for index {previous_waypoint_index}: {e}")
-        # Setting back the target and waypoint index
-        self.current_waypoint_index = previous_waypoint_index
-        self.current_target = GlobalPositionTarget()
-        self.current_target.latitude = self.waypoints_list[previous_waypoint_index].x_lat
-        self.current_target.longitude = self.waypoints_list[previous_waypoint_index].y_long
-        self.current_target.altitude = self.waypoints_list[previous_waypoint_index].z_alt
+        else:
+            previous_waypoint_index = self.current_waypoint_index - 1
+            try:
+                response = self.set_current_wp_srv(previous_waypoint_index)
+                if response.success:
+                    rospy.logwarn(
+                        f"Successfully set current waypoint to {previous_waypoint_index}")
+                else:
+                    rospy.logwarn(
+                        f"Failed to set current waypoint to {previous_waypoint_index}")
+            except rospy.ServiceException as e:
+                rospy.logerr(
+                    f"Waypoint set service call failed for index {previous_waypoint_index}: {e}")
+            # Setting back the target and waypoint index
+            self.current_waypoint_index = previous_waypoint_index
+            self.current_target = GlobalPositionTarget()
+            self.current_target.latitude = self.waypoints_list[previous_waypoint_index].x_lat
+            self.current_target.longitude = self.waypoints_list[previous_waypoint_index].y_long
+            self.current_target.altitude = self.waypoints_list[previous_waypoint_index].z_alt
+            self.setFlightMode("AUTO")
 
     def sendGuidedPointBodyFrame(self, guided_point_baselink_frame):
         # Calculate guided point angle:
@@ -331,9 +341,7 @@ class ObstacleAvoidance:
                 if np.linalg.norm(guided_point_baselink_frame) == 0:
                     rospy.logerr(
                         "No path was found to avoid obstacles, going back to previous waypoint in mission!")
-                    rospy.logerr(f"Angle tests: {[np.degrees(a) for a in angle_tests]}")
                     self.setCurrentTargetToPreviousWaypoint()
-                    self.setFlightMode("AUTO")
                     return
 
                 # Start avoiding and set the GUIDED mode to send commands
