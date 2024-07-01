@@ -105,6 +105,9 @@ class ObstacleAvoidance:
         if self.waypoints_list[-1].x_lat == 0 and self.waypoints_list[-1].y_long == 0 and self.home_waypoint:
             self.waypoints_list[-1].x_lat = self.home_waypoint.geo.latitude
             self.waypoints_list[-1].y_long = self.home_waypoint.geo.longitude
+        # Set the first point in the mission to be the home as well, to make sure we know it when coming back from a blocked region
+        self.waypoints_list[0].x_lat = self.home_waypoint.geo.latitude
+        self.waypoints_list[0].y_long = self.home_waypoint.geo.longitude
         # Get the current target waypoint if we are in a mission
         if self.current_state.mode == "AUTO":
             for i, waypoint in enumerate(self.waypoints_list):
@@ -172,11 +175,17 @@ class ObstacleAvoidance:
                     f"Failed to resume original state, setting MANUAL mode: {e}")
 
     def setCurrentTargetToPreviousWaypoint(self):
+        # For now, only work if we are already following the second waypoint
+        if self.current_waypoint_index < 3:
+            return
+
         # Lets try to go back to the previous point
         rospy.logerr(
             "No path was found to avoid obstacles, going back to previous waypoint in mission, if any!")
         previous_waypoint_index = self.current_waypoint_index - 1
         if self.current_waypoint_index == 2:
+            previous_waypoint_index = 0
+        elif previous_waypoint_index < 0:
             previous_waypoint_index = 0
         try:
             response = self.set_current_wp_srv(previous_waypoint_index)
@@ -198,8 +207,10 @@ class ObstacleAvoidance:
 
     def sendGuidedPointBodyFrame(self, guided_point_baselink_frame):
         # Calculate guided point angle:
-        angle = -np.arctan2(guided_point_baselink_frame[1], guided_point_baselink_frame[0])
-        
+        angle = - \
+            np.arctan2(
+                guided_point_baselink_frame[1], guided_point_baselink_frame[0])
+
         setpoint = PositionTarget()
         setpoint.header = Header()
         setpoint.header.stamp = rospy.Time.now()
