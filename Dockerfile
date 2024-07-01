@@ -76,9 +76,9 @@ RUN apt-get update && apt-get install -y \
     gstreamer1.0-plugins-bad \
     gstreamer1.0-plugins-ugly \
     gstreamer1.0-libav \
-    libgstreamer-plugins-base1.0-dev
+    libgstreamer-plugins-base1.0-dev \
+    python3-roslib
 RUN pip3 install opencv-python
-RUN apt-get install python3-roslib
 RUN export PYTHONPATH=/usr/local/lib/python3.8/dist-packages:$PYTHONPATH
 
 # Install geographic libs for mavros dependencies
