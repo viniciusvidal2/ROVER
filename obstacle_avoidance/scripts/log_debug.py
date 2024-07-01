@@ -230,6 +230,6 @@ def logCallbackLoop(obstacles_baselink_frame, goal_baselink_frame, guided_point_
             f"Guided point in baselink frame: {guided_point_baselink_frame}")
         for i, obstacle in enumerate(obstacles_baselink_frame):
             rospy.loginfo(f"Obstacle {i} in baselink frame: {obstacle}")
-        rospy.loginfo(f"Critical zone? {"Yes" if critical_zone else "No"}")
+        rospy.loginfo(f"Critical zone? {critical_zone}")
         rospy.loginfo(
             "=================================================================")
