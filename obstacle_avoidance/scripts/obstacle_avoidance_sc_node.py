@@ -101,13 +101,14 @@ class ObstacleAvoidance:
         self.waypoints_list = data.waypoints
         if len(self.waypoints_list) == 0:
             return
-        # If the last waypoint coordinates are 0, that means it is a return to launch waypoint, so we add the home waypoint values to this waypoint
-        if self.waypoints_list[-1].x_lat == 0 and self.waypoints_list[-1].y_long == 0 and self.home_waypoint:
-            self.waypoints_list[-1].x_lat = self.home_waypoint.geo.latitude
-            self.waypoints_list[-1].y_long = self.home_waypoint.geo.longitude
-        # Set the first point in the mission to be the home as well, to make sure we know it when coming back from a blocked region
-        self.waypoints_list[0].x_lat = self.home_waypoint.geo.latitude
-        self.waypoints_list[0].y_long = self.home_waypoint.geo.longitude
+        if self.home_waypoint:
+            # If the last waypoint coordinates are 0, that means it is a return to launch waypoint, so we add the home waypoint values to this waypoint
+            if self.waypoints_list[-1].x_lat == 0 and self.waypoints_list[-1].y_long == 0:
+                self.waypoints_list[-1].x_lat = self.home_waypoint.geo.latitude
+                self.waypoints_list[-1].y_long = self.home_waypoint.geo.longitude
+            # Set the first point in the mission to be the home as well, to make sure we know it when coming back from a blocked region
+            self.waypoints_list[0].x_lat = self.home_waypoint.geo.latitude
+            self.waypoints_list[0].y_long = self.home_waypoint.geo.longitude
         # Get the current target waypoint if we are in a mission
         if self.current_state.mode == "AUTO":
             for i, waypoint in enumerate(self.waypoints_list):
