@@ -33,7 +33,7 @@ class ObstacleAvoidance:
         self.current_yaw = 0.0  # [RAD]
         self.current_location = None  # GPS data
         self.current_state = State()  # vehicle driving mode
-        self.debug_mode = True  # debug mode to print more information
+        self.debug_mode = False  # debug mode to print more information
         self.home_waypoint = None  # home waypoint data, contains home lat and lon
         self.waypoints_list = None  # list of waypoints in the autonomous mission
         self.current_waypoint_index = -1  # Autonomous mission waypoint we are tracking
@@ -74,6 +74,7 @@ class ObstacleAvoidance:
         # Services
         rospy.wait_for_service('/mavros/set_mode')
         rospy.wait_for_service('/mavros/mission/set_current')
+        rospy.wait_for_service('/mavros/cmd/command')
         self.set_mode_service = rospy.ServiceProxy('/mavros/set_mode', SetMode)
         self.set_current_wp_srv = rospy.ServiceProxy(
             '/mavros/mission/set_current', WaypointSetCurrent)
@@ -179,20 +180,20 @@ class ObstacleAvoidance:
     def setCurrentTargetToPreviousWaypoint(self):
         # If first waypoint, we must go back to the home waypoint with RTL
         # If not, just set back the previous waypoint as the current one
-        if self.current_waypoint_index < 3:
-            self.current_waypoint_index = 0
-            self.current_target = GlobalPositionTarget()
-            self.current_target.latitude = self.home_waypoint.geo.latitude
-            self.current_target.longitude = self.home_waypoint.geo.longitude
-            self.current_target.altitude = self.home_waypoint.geo.altitude
-            self.setFlightMode("GUIDED")
-            try:
-                rospy.wait_for_service('/mavros/cmd/command', timeout=10)
-                self.command_tol_srv(command=20)  # 20 is the command code for RTL
-            except rospy.ServiceException as e:
-                rospy.logerr(f"Failed to send RTL command: {e}")
+        # if self.current_waypoint_index < 3:
+        #     self.current_waypoint_index = 0
+        #     self.current_target = GlobalPositionTarget()
+        #     self.current_target.latitude = self.home_waypoint.geo.latitude
+        #     self.current_target.longitude = self.home_waypoint.geo.longitude
+        #     self.current_target.altitude = self.home_waypoint.geo.altitude
+        #     self.setFlightMode("GUIDED")
+        #     try:
+        #         rospy.wait_for_service('/mavros/cmd/command', timeout=10)
+        #         self.command_tol_srv(command=20)  # 20 is the command code for RTL
+        #     except rospy.ServiceException as e:
+        #         rospy.logerr(f"Failed to send RTL command: {e}")
 
-        else:
+        if self.current_waypoint_index > 2:
             previous_waypoint_index = self.current_waypoint_index - 1
             try:
                 response = self.set_current_wp_srv(previous_waypoint_index)
@@ -345,7 +346,7 @@ class ObstacleAvoidance:
                 elif self.current_state.mode == "GUIDED" and guided_to_goal_angle < 5:
                     # Check if there is enough FOV to the goal before changing to AUTO mode, which means we have
                     # now quite left the obstacle behind
-                    if checkSafeFOV(obstacles_baselink_frame, goal_baselink_frame):
+                    if checkSafeFOV(obstacles_baselink_frame, goal_angle_baselink_frame):
                         self.setFlightMode("AUTO")
                         return
 

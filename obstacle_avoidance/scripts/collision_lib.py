@@ -36,12 +36,12 @@ def calculateBestTrajectoryGuidedPoint(angle_tests, goal_distance, obstacles_bas
     return [0, 0], np.degrees(abs(angle_tests[-1] - angle_tests[0]))
 
 
-def checkSafeFOV(obstacles_baselink_frame, goal_baselink_frame):
+def checkSafeFOV(obstacles_baselink_frame, goal_angle_baselink_frame):
     # Check if there is enough FOV to the goal before changing to AUTO mode, which means we have
     # now quite left the obstacle behind
-    safe_fov = 60
+    safe_fov = 90
     for _, angle in obstacles_baselink_frame:
-        if abs(goal_baselink_frame[1] - angle) < safe_fov/2:
+        if abs(goal_angle_baselink_frame - angle) < safe_fov/2:
             return False
 
     return True
