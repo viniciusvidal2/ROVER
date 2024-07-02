@@ -8,8 +8,8 @@
     <arg name="fcu_protocol" default="v2.0"/>
     <arg name="respawn_mavros" default="false"/>
     <arg name="k" default="0.58"/>
-    <arg name="sending_t" default="3"/>
-    <arg name="max_dist" default="3"/>
+    <arg name="sending_t" default="0.5"/>
+    <arg name="max_dist" default="5"/>
     <arg name="max_dist_to_guided" default="30"/>
 
     <!-- Set fcu_url and gcs_url based on SITL flag -->

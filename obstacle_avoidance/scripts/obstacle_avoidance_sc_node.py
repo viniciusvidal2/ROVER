@@ -22,8 +22,8 @@ class ObstacleAvoidance:
 
         # User arguments
         self.guided_point_sending_interval = rospy.get_param(
-            '~sending_t', 3)  # [s]
-        self.max_obstacle_distance = rospy.get_param('~max_dist', 3)  # [m]
+            '~sending_t', 0.5)  # [s]
+        self.max_obstacle_distance = rospy.get_param('~max_dist', 5)  # [m]
 
         # Control the node execution incoming messages
         self.last_input_scan_message_time = time()
@@ -38,8 +38,8 @@ class ObstacleAvoidance:
         self.waypoints_list = None  # list of waypoints in the autonomous mission
         self.current_waypoint_index = -1  # Autonomous mission waypoint we are tracking
         self.current_target = None  # target waypoint data in AUTO mode
-        self.vehicle_width = 1.0  # [m]
-        self.critical_zone_radius = 1.0  # [m]
+        self.vehicle_width = 1.5  # [m]
+        self.critical_zone_radius = 1.5  # [m]
 
         # Subscribers to mavros and laserscan messages
         rospy.Subscriber("/livox/scan", LaserScan,
@@ -57,7 +57,7 @@ class ObstacleAvoidance:
 
         # If no message for some reason, resume original state with a frequency based callback
         self.timer_cb = rospy.Timer(rospy.Duration(
-            1.0), self.travelStateCheckCallback)
+            1.0), self.sensorStateCheckCallback)
 
         # Publishers
         self.setpoint_global_pub = rospy.Publisher(
@@ -135,7 +135,7 @@ class ObstacleAvoidance:
             rospy.logwarn(
                 f"Home waypoint set to {self.home_waypoint.geo.latitude}, {self.home_waypoint.geo.longitude}")
 
-    def travelStateCheckCallback(self, event):
+    def sensorStateCheckCallback(self, event):
         # Check if we are some time with no input data, and if so get back to AUTO mode mission
         if time() - self.last_input_scan_message_time > 4:
             rospy.logwarn(
