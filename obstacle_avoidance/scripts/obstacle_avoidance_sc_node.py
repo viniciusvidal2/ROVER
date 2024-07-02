@@ -293,7 +293,6 @@ class ObstacleAvoidance:
             # If inside the critical zone, always act
             if time() - self.last_guided_point_time < self.guided_point_sending_interval:
                 return
-            self.last_guided_point_time = time()
 
             # In case there is a target waypoint, we can calculate the avoidance
             if self.current_target:
@@ -356,6 +355,8 @@ class ObstacleAvoidance:
                         return
 
                 # If it is a critical zone, we should act in the body frame, shortening the goal distance
+                # If not, just send in the global frame
+                # Update the time we sent a command so that it can travel a bit before the next one
                 if critical_zone:
                     critical_point_distance = np.max(
                         [closest_obstacle_distance, 2])
@@ -366,6 +367,7 @@ class ObstacleAvoidance:
                 else:
                     self.sendGuidedPointGlobalFrame(
                         guided_point_baselink_frame)
+                self.last_guided_point_time = time()
 
                 # Publish goal and target points for debug purposes
                 if self.debug_mode:
