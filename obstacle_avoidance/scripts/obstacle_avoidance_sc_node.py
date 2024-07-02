@@ -214,11 +214,6 @@ class ObstacleAvoidance:
             self.setFlightMode("AUTO")
 
     def sendGuidedPointBodyFrame(self, guided_point_baselink_frame):
-        # Calculate guided point angle:
-        angle = - \
-            np.arctan2(
-                guided_point_baselink_frame[1], guided_point_baselink_frame[0])
-
         setpoint = PositionTarget()
         setpoint.header = Header()
         setpoint.header.stamp = rospy.Time.now()
@@ -235,12 +230,12 @@ class ObstacleAvoidance:
         setpoint.acceleration_or_force.x = 0.0
         setpoint.acceleration_or_force.y = 0.0
         setpoint.acceleration_or_force.z = 0.0
-        setpoint.yaw = angle
+        setpoint.yaw = 0.0
         setpoint.yaw_rate = 0.0
         # Specify which fields are valid
         setpoint.type_mask = PositionTarget.IGNORE_VX | PositionTarget.IGNORE_VY | PositionTarget.IGNORE_VZ \
             | PositionTarget.IGNORE_AFX | PositionTarget.IGNORE_AFY | PositionTarget.IGNORE_AFZ \
-            | PositionTarget.IGNORE_YAW_RATE
+            | PositionTarget.IGNORE_YAW | PositionTarget.IGNORE_YAW_RATE
 
         self.setpoint_local_pub.publish(setpoint)
 
@@ -363,7 +358,9 @@ class ObstacleAvoidance:
                     guided_point_baselink_frame = guided_point_baselink_frame / \
                         np.linalg.norm(guided_point_baselink_frame) * \
                         critical_point_distance
-                    self.sendGuidedPointBodyFrame(guided_point_baselink_frame)
+                    # self.sendGuidedPointBodyFrame(guided_point_baselink_frame)
+                    self.sendGuidedPointGlobalFrame(
+                        guided_point_baselink_frame)
                 else:
                     self.sendGuidedPointGlobalFrame(
                         guided_point_baselink_frame)
