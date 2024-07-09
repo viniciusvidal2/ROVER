@@ -7,10 +7,9 @@
     <arg name="log_output" default="log"/>
     <arg name="fcu_protocol" default="v2.0"/>
     <arg name="respawn_mavros" default="false"/>
-    <arg name="k" default="0.58"/>
     <arg name="sending_t" default="0.5"/>
-    <arg name="max_dist" default="10"/>
-    <arg name="corridor_width" default="5"/>
+    <arg name="max_dist" default="7"/>
+    <arg name="corridor_width" default="1.5"/>
 
     <!-- Set fcu_url and gcs_url based on SITL flag -->
     <arg unless="$(arg SITL)" name="fcu_url" default="/dev/ttyACM0:57600"/>
