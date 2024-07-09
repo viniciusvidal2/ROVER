@@ -9,8 +9,8 @@
     <arg name="respawn_mavros" default="false"/>
     <arg name="k" default="0.58"/>
     <arg name="sending_t" default="0.5"/>
-    <arg name="max_dist" default="5"/>
-    <arg name="max_dist_to_guided" default="30"/>
+    <arg name="max_dist" default="10"/>
+    <arg name="corridor_width" default="5"/>
 
     <!-- Set fcu_url and gcs_url based on SITL flag -->
     <arg unless="$(arg SITL)" name="fcu_url" default="/dev/ttyACM0:57600"/>
@@ -53,6 +53,7 @@
     <node pkg="mig_obstacle_avoidance" type="obstacle_avoidance_sc_node.py" name="obstacle_avoidance_sc_node">
         <param name="sending_t" value="$(arg sending_t)"/>
         <param name="max_dist" value="$(arg max_dist)"/>
+        <param name="corridor_width" value="$(arg corridor_width)"/>
     </node>
     
 </launch>
