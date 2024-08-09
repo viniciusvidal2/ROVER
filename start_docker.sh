@@ -14,4 +14,4 @@ DURATION=30
 # Construct the filename
 FILENAME="$SAVE_DIR/rosbag_debug"
 # Record the topics
-rosbag record $TOPICS -o $FILENAME --split --duration=$DURATION
+#rosbag record $TOPICS -o $FILENAME --split --duration=$DURATION
