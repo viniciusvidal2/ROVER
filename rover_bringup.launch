@@ -34,7 +34,7 @@
     <!-- Launch driver nodes if not running SITL simulation -->
     <group unless="$(arg SITL)">
         <!-- Livox sensor - mid360-->
-        <include file="$(find livox_ros_driver2)/launch/rviz_MID360.launch">
+        <include file="$(find livox_ros_driver2)/launch/msg_MID360.launch">
             <arg name="rviz_enable" value="false"/>
         </include>
 
