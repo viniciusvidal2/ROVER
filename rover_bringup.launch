@@ -45,6 +45,11 @@
         <include file="$(find dynamixel_controller)/launch/dynamixel_controller.launch"/>
     </group>
 
+    <!-- FAST LIO for lidar odometry and mapping -->
+    <include file="$(find fast_lio)/launch/mapping_mid360.launch">
+        <arg name="rviz" value="false"/>
+    </include>
+
     <!-- Livox filter -->
     <rosparam command="load" file="$(find livox_filter_mig)/config/params.yaml"/>
     <node name="filter_raw_cloud_node" pkg="livox_filter_mig" type="filter_raw_cloud_node" output="screen"/>
