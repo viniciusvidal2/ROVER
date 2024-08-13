@@ -53,6 +53,7 @@
         <param name="sending_t" value="$(arg sending_t)"/>
         <param name="max_dist" value="$(arg max_dist)"/>
         <param name="corridor_width" value="$(arg corridor_width)"/>
+        <param name="turn_rate" value="$(arg turn_rate)"/>
     </node>
     
 </launch>
