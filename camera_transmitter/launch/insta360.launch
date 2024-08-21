@@ -5,7 +5,7 @@
   <arg name="fps" default="5"/>
 
   <!-- The node to control the camera transmission -->
-  <node pkg="camera_transmitter" type="camera_transmitter_node.py" name="camera_transmitter_node" output="screen">
+  <node pkg="camera_transmitter" type="insta360_node.py" name="insta360_node" output="screen">
     <param name="width" value="$(arg width)"/>
     <param name="height" value="$(arg height)"/>
     <param name="fps" value="$(arg fps)"/>
