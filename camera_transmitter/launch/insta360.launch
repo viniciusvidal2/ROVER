@@ -1,8 +1,8 @@
 <launch>
 
-  <arg name="width" default="1920"/>
-  <arg name="height" default="1080"/>
-  <arg name="fps" default="5"/>
+  <arg name="width" default="1280"/>
+  <arg name="height" default="720"/>
+  <arg name="fps" default="10"/>
 
   <!-- The node to control the camera transmission -->
   <node pkg="camera_transmitter" type="insta360_node.py" name="insta360_node" output="screen">

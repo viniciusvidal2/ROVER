@@ -4,37 +4,39 @@ import rospy
 import cv2
 import os
 import roslib
+from flask import Flask, Response
 
+app = Flask(__name__)
 
-def transmit_insta360_http(width: int, height: int, desired_fps: float):
-    # Suppress OpenCV warnings
-    os.environ['OPENCV_VIDEOIO_PRIORITY_MSMF'] = '0'
-    os.environ['OPENCV_VIDEOIO_PRIORITY_GSTREAMER'] = '0'
+# General parameters
+WIDTH = 1920
+HEIGHT = 1080
+FPS = 5
 
+def transmit_insta360_http():
     cap = cv2.VideoCapture(0)
 
     if cap.isOpened():
         # Set the desired frame rate
         original_fps = 30
-        frames_to_skip = int(original_fps/desired_fps) - 1
-
-        print("Desired frame rate:", desired_fps)
-        print("Frames to skip:", frames_to_skip)
+        frames_to_skip = int(original_fps/FPS) - 1
 
         frame_count = 0
         while not rospy.is_shutdown():
             ret, frame = cap.read()
-            frame_count += 1
             if not ret:
                 continue
+            frame_count += 1
 
             # Control the frame rate
             if frame_count == frames_to_skip + 1:
                 frame_count = 0
-                frame = cv2.resize(frame, (width, height))
-                # Split in two images, dividing the frame in half vertically
-                frame_front = frame[:int(frame.shape[0]/2), :]
-                frame_back = frame[int(frame.shape[0]/2):, :]
+                frame = cv2.resize(frame, (WIDTH, 2*HEIGHT))
+                # Send the frame with the server
+                _, buffer = cv2.imencode('.jpg', frame)
+                buffer_bytes = buffer.tobytes()
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + buffer_bytes + b'\r\n')
 
         cap.release()
     else:
@@ -43,29 +45,31 @@ def transmit_insta360_http(width: int, height: int, desired_fps: float):
         image = cv2.imread(os.path.join(
             package_path, "resources", "no_camera.png"))
 
-        # Create a custom window
-        window_name = 'Bad Camera'
-        cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
-        cv2.setWindowProperty(
-            window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-
+        # Send the bad camera image from time to time
         while not rospy.is_shutdown():
-            image = cv2.resize(image, (width, height))
-            cv2.imshow(window_name, image)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-            rospy.sleep(0.2)
+            image = cv2.resize(image, (WIDTH, 2*HEIGHT))
+            rospy.sleep(1)
+            _, buffer = cv2.imencode('.jpg', frame)
+            buffer_bytes = buffer.tobytes()
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + buffer_bytes + b'\r\n')
+
+
+@app.route('/video_feed')
+def video_feed():
+    return Response(transmit_insta360_http(),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
 
 
 if __name__ == '__main__':
     try:
         rospy.init_node('insta360_node', anonymous=False)
 
-        width = rospy.get_param('~width', 1920)
-        height = rospy.get_param('~height', 1080)
-        fps = rospy.get_param('~fps', 5)
+        WIDTH = rospy.get_param('~width', 1920)
+        HEIGHT = rospy.get_param('~height', 1080)
+        FPS = rospy.get_param('~fps', 5)
 
-        transmit_insta360_http(width, height, fps)
+        app.run(host='0.0.0.0', port=1234)
 
     except rospy.ROSInterruptException:
         print("ROS node terminated.")

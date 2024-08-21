@@ -18,9 +18,6 @@ def transmit_camera_hdmi(width: int, height: int, desired_fps: float):
         original_fps = 30
         frames_to_skip = int(original_fps/desired_fps) - 1
 
-        print("Desired frame rate:", desired_fps)
-        print("Frames to skip:", frames_to_skip)
-
         # Create a custom window
         window_name = 'Vehicle Camera'
         cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
@@ -30,9 +27,9 @@ def transmit_camera_hdmi(width: int, height: int, desired_fps: float):
         frame_count = 0
         while not rospy.is_shutdown():
             ret, frame = cap.read()
-            frame_count += 1
             if not ret:
                 continue
+            frame_count += 1
 
             # Control the frame rate
             if frame_count == frames_to_skip + 1:
