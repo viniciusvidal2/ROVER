@@ -101,6 +101,9 @@ RUN python3 setup.py install
 # Instal geographic dependencies
 RUN pip install utm datetime
 
+# Install flask for camera transmission
+RUN pip install flask
+
 # Copy the packages to inside the docker and compile the ROS ones
 WORKDIR /home/rover/
 COPY livox_ros_driver2 /home/rover/src/livox_ros_driver2

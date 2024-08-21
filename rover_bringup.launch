@@ -41,6 +41,9 @@
         <!-- USB camera for herelink transmission -->
         <include file="$(find camera_transmitter)/launch/camera_transmitter.launch"/>
 
+        <!-- Insta360 camera for 360 degree view -->
+        <!-- <include file="$(find camera_transmitter)/launch/insta360.launch"/> -->
+
         <!-- Dynamixel controllers -->
         <include file="$(find dynamixel_controller)/launch/dynamixel_controller.launch"/>
     </group>
