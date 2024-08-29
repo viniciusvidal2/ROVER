@@ -101,8 +101,9 @@ RUN python3 setup.py install
 # Instal geographic dependencies
 RUN pip install utm datetime
 
-# Install flask for camera transmission
-RUN pip install flask
+# Install REST API dependencies
+RUN pip install flask flask_cors roslibpy
+RUN apt install ros-noetic-rosbridge-suite
 
 # Copy the packages to inside the docker and compile the ROS ones
 WORKDIR /home/rover/
