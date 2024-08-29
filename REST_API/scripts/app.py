@@ -1,0 +1,112 @@
+# -*- coding: utf-8 -*-
+from flask import Flask, jsonify
+from flask_cors import CORS
+import roslibpy
+from sensor_msgs.msg import CompressedImage, NavSatFix
+from std_msgs.msg import Float64
+from time import sleep
+
+############################################################################
+# region Declarations and Definitions
+############################################################################
+
+# Connection to ROS
+global_ros_ip = 'localhost'
+global_ros_port = 9090
+ros = roslibpy.Ros(host=global_ros_ip, port=global_ros_port)
+
+# Global variables and topics
+global_image_camera = None
+global_gps_coordinates = {'latitude': -1, 'longitude': -1}
+global_compass_heading = -1  # -1 means no data [degrees 0-360]
+global_image_topic = roslibpy.Topic(
+    ros, '/image_user/compressed', 'sensor_msgs/CompressedImage')
+global_gps_topic = roslibpy.Topic(
+    ros, '/mavros/global_position/global', 'sensor_msgs/NavSatFix')
+global_compass_topic = roslibpy.Topic(
+    ros, '/mavros/global_position/compass_hdg', 'std_msgs/Float64')
+
+# Init Flask app
+app = Flask(__name__)
+cors = CORS(app)
+
+# endregion
+############################################################################
+# region API GETs
+############################################################################
+
+
+@app.route('/insta360/image', methods=['GET'])
+def get_camera_image() -> dict:
+    global global_image_camera
+    return global_image_camera
+
+
+@app.route('/gps/location_orientation', methods=['GET'])
+def get_gps_location_orientation() -> dict:
+    global global_gps_coordinates, global_compass_heading
+    # Check if we have data (1), if not return status = 0
+    status = 1
+    if global_gps_coordinates['latitude'] == -1 or global_gps_coordinates['longitude'] == -1 or global_compass_heading == -1:
+        status = 0
+
+    return jsonify({'status': status,
+                    'latitude': global_gps_coordinates['latitude'],
+                    'longitude': global_gps_coordinates['longitude'],
+                    'compass': global_compass_heading})
+
+# endregion
+############################################################################
+# region ROS data callbacks
+############################################################################
+
+
+def camera_image_callback(msg: CompressedImage) -> None:
+    global global_image_camera
+    global_image_camera = msg['data']
+
+
+def gps_callback(msg: NavSatFix) -> None:
+    global global_gps_coordinates
+    global_gps_coordinates = {'latitude': msg['latitude'], 'longitude': msg['longitude']}
+
+
+def compass_callback(msg: Float64) -> None:
+    # The compass sends data in DEGREES (0 - 360)
+    # It has North as 0, East as 90, South as 180 and West as 270
+    global global_compass_heading
+    global_compass_heading = msg['data']  # [degrees]
+
+
+# endregion
+############################################################################
+# region Main functions
+############################################################################
+
+def guarantee_ros_connection() -> None:
+    ros.run()
+    while not ros.is_connected:
+        print('Is ROS connected ?', ros.is_connected)
+        ros.connect()
+        sleep(1)
+    print('ROS connected')
+    ros.run()
+
+
+def init_subscribers() -> None:
+    global global_image_topic, global_gps_topic, global_compass_topic
+
+    global_image_topic.subscribe(callback=camera_image_callback)
+    global_gps_topic.subscribe(callback=gps_callback)
+    global_compass_topic.subscribe(callback=compass_callback)
+
+
+if __name__ == '__main__':
+    # Connect to ROS
+    guarantee_ros_connection()
+    # Init all ROS subscribers
+    init_subscribers()
+    # Run the app to serve the API
+    app.run()
+
+# endregion
