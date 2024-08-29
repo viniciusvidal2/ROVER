@@ -46,6 +46,9 @@
 
         <!-- Dynamixel controllers -->
         <include file="$(find dynamixel_controller)/launch/dynamixel_controller.launch"/>
+
+        <!-- ROSBridge for communication with web interface -->
+        <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch"/>
     </group>
 
     <!-- FAST LIO for lidar odometry and mapping -->
