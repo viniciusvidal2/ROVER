@@ -103,7 +103,7 @@ RUN pip install utm datetime
 
 # Install REST API dependencies
 RUN pip install flask flask_cors roslibpy
-RUN apt install ros-noetic-rosbridge-suite
+RUN apt-get install -y ros-noetic-rosbridge-suite
 
 # Copy the packages to inside the docker and compile the ROS ones
 WORKDIR /home/rover/
