@@ -5,6 +5,7 @@ import roslibpy
 from sensor_msgs.msg import CompressedImage, NavSatFix
 from std_msgs.msg import Float64
 from time import sleep
+import subprocess
 
 ############################################################################
 # region Declarations and Definitions
@@ -84,6 +85,16 @@ def compass_callback(msg: Float64) -> None:
 ############################################################################
 
 def guarantee_ros_connection() -> None:
+    # Check if rosbridge is already connected
+    rosbridge_up = False
+    while not rosbridge_up:
+        try:
+            output = subprocess.check_output(['rosnode', 'list'], text=True)
+            if '/rosbridge_websocket' in output:
+                rosbridge_up = True
+        except subprocess.CalledProcessError:
+            print("Failed to check rosbridge status.")
+    # Start the ros connection
     ros.run()
     while not ros.is_connected:
         print('Is ROS connected ?', ros.is_connected)
@@ -108,5 +119,8 @@ if __name__ == '__main__':
     init_subscribers()
     # Run the app to serve the API
     app.run()
+
+    # Disconnect from ROS
+    ros.close()
 
 # endregion
