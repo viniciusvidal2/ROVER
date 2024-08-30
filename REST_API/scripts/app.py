@@ -118,7 +118,7 @@ if __name__ == '__main__':
     # Init all ROS subscribers
     init_subscribers()
     # Run the app to serve the API
-    app.run()
+    app.run(host='0.0.0.0', port=5000)
 
     # Disconnect from ROS
     ros.close()
