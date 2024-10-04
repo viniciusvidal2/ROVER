@@ -118,7 +118,7 @@ RUN chmod +x /home/rover/src/camera_transmitter/scripts/*.py
 RUN chmod +x /home/rover/src/mig_obstacle_avoidance/ros/scripts/*.py
 RUN chmod +x /home/rover/src/dynamixel_controller/scripts/*.py
 RUN chmod +x /home/rover/src/REST_API/scripts/*.py
-RUN catkin build
+RUN catkin build -j1
 
 RUN echo "source /home/rover/devel/setup.bash" >> /root/.bashrc
 RUN /bin/bash -c "source /home/rover/devel/setup.bash"
