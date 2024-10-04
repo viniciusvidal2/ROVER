@@ -3,6 +3,7 @@
 source /opt/ros/noetic/setup.bash
 source /home/rover/devel/setup.bash
 nohup roslaunch /home/rover/rover_bringup.launch &
+nohup python3 /home/rover/src/REST_API/scripts/app.py &
 echo "ROS environment is running"
 
 # Directory to save the bag files
