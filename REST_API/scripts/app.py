@@ -50,7 +50,7 @@ def start_mapping():
 @app.route('/mapping/stop', methods=['POST'])
 def stop_mapping():
     try:
-        subprocess.Popen(['rosnode', 'kill', '/mapping_node'],
+        subprocess.Popen(['rosnode', 'kill', '/mapping_node', '/lidar_odometry_node'],
                          stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         return jsonify({"status": 0, "message": "Mapping node stopped successfully"})
     except Exception as e:
@@ -70,7 +70,7 @@ def start_localization():
 @app.route('/localization/stop', methods=['POST'])
 def stop_localization():
     try:
-        subprocess.Popen(['rosnode', 'kill', '/localization_node'],
+        subprocess.Popen(['rosnode', 'kill', '/localization_node', '/lidar_odometry_node'],
                          stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         return jsonify({"status": 0, "message": "Localization node stopped successfully"})
     except Exception as e:
