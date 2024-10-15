@@ -33,6 +33,51 @@ cors = CORS(app)
 
 # endregion
 ############################################################################
+# region API POSTs
+############################################################################
+
+
+@app.route('/mapping/start', methods=['POST'])
+def start_mapping():
+    try:
+        subprocess.Popen(['roslaunch', 'mapping', 'mapping.launch'],
+                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        return jsonify({"status": 1, "message": "Mapping launched successfully"})
+    except Exception as e:
+        return jsonify({"status": 0, "error": str(e)}), 500
+
+
+@app.route('/mapping/stop', methods=['POST'])
+def stop_mapping():
+    try:
+        subprocess.Popen(['rosnode', 'kill', '/mapping_node'],
+                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        return jsonify({"status": 0, "message": "Mapping node stopped successfully"})
+    except Exception as e:
+        return jsonify({"status": 1, "error": str(e)}), 500
+
+
+@app.route('/localization/start', methods=['POST'])
+def start_localization():
+    try:
+        subprocess.Popen(['roslaunch', 'localization', 'localization.launch'],
+                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        return jsonify({"status": 1, "message": "Localization launched successfully"})
+    except Exception as e:
+        return jsonify({"status": 0, "error": str(e)}), 500
+
+
+@app.route('/localization/stop', methods=['POST'])
+def stop_localization():
+    try:
+        subprocess.Popen(['rosnode', 'kill', '/localization_node'],
+                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        return jsonify({"status": 0, "message": "Localization node stopped successfully"})
+    except Exception as e:
+        return jsonify({"status": 1, "error": str(e)}), 500
+
+# endregion
+############################################################################
 # region API GETs
 ############################################################################
 
@@ -69,7 +114,8 @@ def camera_image_callback(msg: CompressedImage) -> None:
 
 def gps_callback(msg: NavSatFix) -> None:
     global global_gps_coordinates
-    global_gps_coordinates = {'latitude': msg['latitude'], 'longitude': msg['longitude']}
+    global_gps_coordinates = {
+        'latitude': msg['latitude'], 'longitude': msg['longitude']}
 
 
 def compass_callback(msg: Float64) -> None:
@@ -122,5 +168,6 @@ if __name__ == '__main__':
 
     # Disconnect from ROS
     ros.close()
+
 
 # endregion
