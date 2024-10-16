@@ -82,6 +82,12 @@ export DISLAY=:0
 xhost +
 ```
 
+To finish up, you must create two folders that will contain the debug bags and the output maps, which will be shared with the docker container:
+```
+mkdir ~/Desktop/maps
+mkdir ~/Desktop/bags_debug
+```
+
 You should see the camera prompting in the monitor/radio transmitter next time you bootup. All other sensors should work just fine as well
 
 ## Running the container
@@ -105,5 +111,5 @@ You should not neet to run the container by hand in the embedded board, but you 
 
 - Running the docker container passing all the necessary info (provided that you have all the sensors connected. If for some reason you don't, remove the config that relates to the missing sensor):
 ```bash
-sudo docker run --restart=always -itd --device=/dev/ttyACM0 --device=/dev/ttyUSB0 --device /dev/video0:/dev/video0 --device /dev/video1:/dev/video1 --privileged --group-add video -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix --network host --name rover_container rover_image:0.1
+sudo docker run --restart=always -itd --device=/dev/ttyACM0 --device=/dev/ttyUSB0 --device /dev/video0:/dev/video0 --device /dev/video1:/dev/video1 --privileged --group-add video -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix -v /home/grin/Desktop/maps:/home/rover/maps -v /home/grin/Desktop/bags_debug:/home/rover/bags_debug --network host --name rover_container rover_image:0.1
 ```
