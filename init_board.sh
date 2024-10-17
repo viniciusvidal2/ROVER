@@ -40,5 +40,5 @@ mkdir -p "/home/grin/bags_debug"
 sleep 5s
 echo 1 | sudo -S systemctl enable docker.service
 export DOCKER_HOST_NAME=host
-sudo docker run --restart=always -itd --device=/dev/ttyACM0 --device=/dev/ttyUSB0 --device /dev/video0:/dev/video0 --device /dev/video1:/dev/video1 --privileged --group-add video -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix -v /home/grin/Desktop/maps:/home/rover/maps -v /home/grin/Desktop/bags_debug:/home/rover/bags_debug --network $DOCKER_HOST_NAME --name rover_container rover_image:0.1
+sudo docker run --restart=always -itd --device=/dev/ttyACM0 --device=/dev/ttyUSB0 --device /dev/video0:/dev/video0 --device /dev/video1:/dev/video1 --privileged --group-add video -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix -v /home/grin/Desktop/maps:/root/maps -v /home/grin/Desktop/bags_debug:/home/rover/bags_debug --network $DOCKER_HOST_NAME --name rover_container rover_image:0.1
 log "Docker has been run, system started."
