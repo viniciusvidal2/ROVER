@@ -19,7 +19,12 @@ def send_request(action, remote_ip):
         return
 
     try:
-        response = requests.post(endpoints[action])
+        # Make a POST request json with map_name
+        if "start" in action:
+            data = {"map_name": "test_map"}
+            response = requests.post(endpoints[action], json=data)
+        else:
+            response = requests.post(endpoints[action])
         if response.status_code == 200:
             print(f"Success: {response.json()}")
         else:

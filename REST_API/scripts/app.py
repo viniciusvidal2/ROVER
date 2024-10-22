@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 import roslibpy
 from sensor_msgs.msg import CompressedImage, NavSatFix
@@ -40,8 +40,13 @@ cors = CORS(app)
 @app.route('/mapping/start', methods=['POST'])
 def start_mapping():
     try:
-        subprocess.Popen(['roslaunch', 'mapping', 'mapping.launch'],
-                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        data = request.get_json()
+        if data is None:
+            subprocess.Popen(['roslaunch', 'mapping', 'mapping.launch'],
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        else:
+            subprocess.Popen(['roslaunch', 'mapping', 'mapping.launch', 'map_name:=' + data['map_name']],
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         return jsonify({"status": 1, "message": "Mapping launched successfully"})
     except Exception as e:
         return jsonify({"status": 0, "error": str(e)}), 500
@@ -60,8 +65,13 @@ def stop_mapping():
 @app.route('/localization/start', methods=['POST'])
 def start_localization():
     try:
-        subprocess.Popen(['roslaunch', 'localization', 'localization.launch'],
-                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        data = request.get_json()
+        if data is None:
+            subprocess.Popen(['roslaunch', 'localization', 'localization.launch'],
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        else:
+            subprocess.Popen(['roslaunch', 'localization', 'localization.launch', 'map_name:=' + data['map_name']],
+                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         return jsonify({"status": 1, "message": "Localization launched successfully"})
     except Exception as e:
         return jsonify({"status": 0, "error": str(e)}), 500
