@@ -53,23 +53,23 @@ class ObstacleAvoidance:
         self.low_pass_guided_point_angle = self.turn_rate*np.pi/180.0  # [RAD]
 
         # Parameters from obstacle avoidance algorithm
-        self.dt = 0.17 # Time step [s] 
+        # self.dt = 0.17 # Time step [s] 
         self.closest_obstacle_distance = 0
         self.x = 0 # Actual x position from odometry
         self.y = 0 # Actual y position from odometry
         self.theta = 0 # Actual orientation from odometry
         self.v = 0 # Actual linear velocity from odometry
         self.w = 0 # Actual angular velocity from odometry
-        self.max_v = 0.5 # Maximum linear velocity
+        self.max_v = 2.55 # Maximum linear velocity 0.5
         self.max_w = np.pi/2 # Maximum angular velocity
         self.best_v = None # Best linear velocity
         self.best_w = None # Best angular velocity
         # self.max_w = np.pi/3
         self.min_v = 0.0 # Minimum linear velocity
-        self.max_acc_v = 0.5 # Maximum linear acceleration
+        self.max_acc_v = 0.6 # Maximum linear acceleration 0.5
         self.max_acc_w = np.pi/2 # Maximum angular acceleration
-        self.safety_distance_to_end = 3.5 # [meters] 2.5
-        self.safety_distance_to_start = 3.0 # [meters] 2.5
+        self.safety_distance_to_end = 3.0 # [meters] 
+        self.safety_distance_to_start = 5.0 # [meters] 3.0, 4.0
         self.valid_ranges = None
         self.next_waypoint = False
 
@@ -79,13 +79,9 @@ class ObstacleAvoidance:
         # self.alpha = 2.0 # Robot alignment to the objective
         # self.beta = 0.2 # Distance to the obstacle
         # self.gamma = 0.2 # Foward speed
-
-        # self.alpha = 2.2 # Robot alignment to the objective
-        # self.beta = 0.2 # Distance to the obstacle
-        # self.gamma = 0.2 # Foward speed
         
-        self.alpha = 2.0 # Robot alignment to the objective
-        self.beta = 0.2 # Distance to the obstacle
+        self.alpha = 0.5 # Robot alignment to the objective
+        self.beta = 2.0 # Distance to the obstacle
         self.gamma = 0.2 # Foward speed
 
         self.angle_min = -2.268889904022217
@@ -192,6 +188,19 @@ class ObstacleAvoidance:
         _,_, self.theta = euler_from_quaternion(orientation_list) # [rad]
         self.v = msg.twist.twist.linear.x # [m/s]
         self.w = msg.twist.twist.angular.z # [rad/s]
+
+        current_time = msg.header.stamp.to_sec()
+
+        # Calcula aceleração se houver uma velocidade anterior registrada
+        if hasattr(self, 'previous_velocity') and hasattr(self, 'previous_time'):
+            self.dt = current_time - self.previous_time
+            if self.dt > 0:
+                self.acceleration = (self.v - self.previous_velocity) / self.dt
+                # rospy.loginfo(f"v: {self.v} m/s, w: {self.w} rad/s, acc: {self.acceleration} m/s²")
+    
+        # Armazena a velocidade e o tempo atuais para a próxima leitura
+        self.previous_velocity = self.v
+        self.previous_time = current_time
 
     def stateCallback(self, state: State) -> None:
         """Current vehicle driving state.
@@ -536,10 +545,10 @@ class ObstacleAvoidance:
                 dist_obst = self.valid_ranges[fov_index]
 
                 # If no obstacle is on the curvature, this value is set to a large constant
-                # if np.isinf(dist_obst) or dist_obst > self.safety_distance_to_start + 1.0:
-                #     dist_obst = 1000
                 if np.isinf(dist_obst) or dist_obst > self.safety_distance_to_start:
-                    dist_obst = 3.0
+                    dist_obst = 1000
+                # if np.isinf(dist_obst) or dist_obst > self.safety_distance_to_start:
+                #     dist_obst = 3.0
                 
                 else:
                     safe_v_max, safe_w_max = self.dynamic_window_safety_stop(dist_obst)
@@ -775,42 +784,42 @@ class ObstacleAvoidance:
         # Verify the distance to the closest obstacle for 220 degrees in front of the robot
         closest_in_fov_220, obstacle_angle_220 = self.closest_obstacle_in_central_fov(fov_positions=391)
 
-        # if self.best_v is not None and self.best_w is not None:
-        #     closest_in_fov = closest_in_fov_270
-        # else:
-
-        # Minimun distance to start the avoidance behavior
-        closest_in_fov = closest_in_fov_90
-        # 180 seria melhor
+        if self.best_v is not None and self.best_w is not None:
+            closest_in_fov = closest_in_fov_270
+        else:
+            # Minimun distance to start the avoidance behavior
+            closest_in_fov = closest_in_fov_90
+            # 180 seria melhor
 
         if closest_in_fov < self.safety_distance_to_start:
             self.closest_obstacle_distance = closest_in_fov
 
-            if self.debug_mode:
-                rospy.logwarn(
-                    f"Obstacle detected in less than {self.closest_obstacle_distance}m!")
+            # if self.debug_mode:
+            #     rospy.logwarn(
+            #         f"Obstacle detected in less than {self.closest_obstacle_distance}m!")
             
             # REPLAN VELOCITY - DWA
             self.best_v, self.best_w = self.replan_velocity()
             if time() - self.last_command_time > self.command_sending_interval:
 
-                self.dt = time() - self.last_command_time
-                if self.dt > 0.21:
-                    self.dt = 0.15
+                # self.dt = time() - self.last_command_time
+                # if self.dt > 0.21:
+                #     self.dt = 0.15
 
                 self.setFlightMode(mode="GUIDED")
                 self.sendGuidedPointLocalFrame(
                     self.best_v, self.best_w)
                 self.last_command_time = time()
 
-                if self.goal_distance < (self.safety_distance_to_start + 0.6):
+                #if self.goal_distance < (self.safety_distance_to_start + 0.6):
+                if self.goal_distance < (3.0):
                     rospy.loginfo("Next waypoint")
                     self.advance_to_next_waypoint(self.current_waypoint_index + 1)
         
         else:         
             # Verify if the path is completely free ahead and on the sides, if so, finish the obstacle avoidance
-            if time() - self.last_command_time > 5*self.command_sending_interval and self.current_state.mode != "AUTO" and closest_in_fov_270 > self.safety_distance_to_start:
-                
+            #if time() - self.last_command_time > 5*self.command_sending_interval and self.current_state.mode != "AUTO" and closest_in_fov_270 > self.safety_distance_to_start:
+            if time() - self.last_command_time > 5*self.command_sending_interval and self.current_state.mode != "AUTO" and closest_in_fov_270 > self.safety_distance_to_end:   
                 self.best_v = None
                 self.best_w = None
 
@@ -821,9 +830,9 @@ class ObstacleAvoidance:
                 self.setFlightMode(mode="AUTO")
                 self.last_command_time = time()           
 
-            elif self.best_v is not None and self.best_w is not None:
-                self.sendGuidedPointLocalFrame(
-                    self.max_v, 0.0)
+            # elif self.best_v is not None and self.best_w is not None:
+            #     self.sendGuidedPointLocalFrame(
+            #         self.max_v, 0.0)
                 
 if __name__ == "__main__":
     try:
