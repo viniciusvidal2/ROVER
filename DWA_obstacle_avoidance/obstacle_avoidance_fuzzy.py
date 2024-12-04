@@ -54,6 +54,7 @@ class ObstacleAvoidance:
 
         # Parameters from obstacle avoidance algorithm
         self.dt_lidar = 0.17 # Time step [s] 
+        self.dt = 0.17 # Time step [s] 
         self.closest_obstacle_distance = 0
         self.x = 0 # Actual x position from odometry
         self.y = 0 # Actual y position from odometry
@@ -68,13 +69,15 @@ class ObstacleAvoidance:
         self.min_v = 0.0 # Minimum linear velocity
         self.max_acc_v = 0.6 # Maximum linear acceleration 0.5
         self.max_acc_w = np.pi/2 # Maximum angular acceleration
-        self.safety_distance_to_end = 3.0 # [meters] 
+        self.safety_distance_to_end = 2.5 # [meters] 
         self.safety_distance_to_start = 5.0 # [meters] 3.0, 4.0
         self.valid_ranges = None # Lidar valid ranges
-        self.next_waypoint = False
+        self.next_waypoint_dist = 3.0 # [meters]
         self.obstacle_speed = 0.0 # Obstacle speed
         self.lidar_subdivisions = [] # Subdivion of lidar field of view
         self.actual_lidar_subdivisions = [] # Actual lidar subdivisions values
+        self.min_dist_lidar_subdivisions = [] # Minimum distance of lidar subdivisions
+        self.waypoints_reached = 0
 
         # self.v_reso = 30 # Linear velocity resolution
         # self.w_reso = 20 # Angular velocity resolution
@@ -509,12 +512,9 @@ class ObstacleAvoidance:
         best_v, best_w = 0, 0  
 
         # Apply fuzzy logic to discover alpha, beta and gamma 
-        # space_input = fuzzy_logic_maneuvering_space(self.actual_lidar_subdivisions, self.safety_distance_to_start)  
-        space_input = fuzzy_logic_maneuvering_space(self.actual_lidar_subdivisions, self.safety_distance_to_end) 
-        self.alpha, self.beta, self.gamma = fuzzy_logic(self.closest_obstacle_distance, self.obstacle_speed, space_input, self.safety_distance_to_start)
-        
-        rospy.loginfo(f"obst_dist: {self.closest_obstacle_distance} m, obst_speed: {self.obstacle_speed} m/s, space_input: {space_input}")
-        rospy.loginfo(f"Alpha: {self.alpha}, Beta: {self.beta}, Gamma: {self.gamma}")
+        self.space_input = fuzzy_logic_maneuvering_space(self.actual_lidar_subdivisions, self.safety_distance_to_start)  
+        # space_input = fuzzy_logic_maneuvering_space(self.actual_lidar_subdivisions, self.safety_distance_to_end) 
+        self.alpha, self.beta, self.gamma = fuzzy_logic(self.min_dist_lidar_subdivisions[1], self.obstacle_speed, self.space_input, self.safety_distance_to_start)
 
         for v in np.linspace(min_v, max_v, num=self.v_reso): 
             for w in np.linspace(min_w, max_w, num=self.w_reso):
@@ -550,9 +550,6 @@ class ObstacleAvoidance:
 
                     max_cost = cost
                     best_v, best_w = v, w
-                    # a, b, g = self.alpha, self.beta, self.gamma
-        
-        # rospy.loginfo(f"Alpha: {a}, Beta: {b}, Gamma: {g}")
 
         return best_v, best_w 
     
@@ -662,9 +659,10 @@ class ObstacleAvoidance:
         start_index = center_index - half_fov
         end_index = center_index + half_fov
         self.actual_lidar_subdivisions = []
+        self.min_dist_lidar_subdivisions = []
 
         # Filter out inf values and transform them into the safety distance
-        leituras_lidar = [self.safety_distance_to_end if leitura == float('inf') else leitura for leitura in self.valid_ranges]
+        leituras_lidar = [self.safety_distance_to_start if leitura == float('inf') else leitura for leitura in self.valid_ranges]
 
         # Get the distances within the central field of view
         central_fov_distances = leituras_lidar[start_index:end_index]
@@ -673,7 +671,9 @@ class ObstacleAvoidance:
         for i in range(0, len(central_fov_distances), lidar_subdivisions_fov):
             if len(central_fov_distances[i:i+lidar_subdivisions_fov]) == lidar_subdivisions_fov:
                 self.actual_lidar_subdivisions.append(np.mean(central_fov_distances[i:i+lidar_subdivisions_fov]))
-        
+                """Botei aqui"""
+                self.min_dist_lidar_subdivisions.append(np.min(central_fov_distances[i:i+lidar_subdivisions_fov]))
+
         self.lidar_subdivisions.append(self.actual_lidar_subdivisions)
 
         # rospy.loginfo(f"Subdivisions: {self.actual_lidar_subdivisions} m")
@@ -689,18 +689,40 @@ class ObstacleAvoidance:
         self.obstacle_speed = np.mean(non_zero_speeds) if non_zero_speeds else 0.0
         # rospy.loginfo(f"Obstacle speed: {self.obstacle_speed} m/s")
 
-    def target_waypoint(self):
+    # def target_waypoint(self):
+    #     """Calculate the target waypoint in baselink frame.
+    #     """
+
+    #     goal_baselink_frame = worldToBaselink(
+    #         target_lat=self.current_target.latitude, target_lon=self.current_target.longitude,
+    #         current_location_lat=self.current_location.latitude, current_location_lon=self.current_location.longitude,
+    #         current_yaw=self.current_yaw)
+        
+    #     self.goal_distance = np.linalg.norm(goal_baselink_frame)  # [m]
+    #     self.goal_angle = np.degrees(np.arctan2(
+    #         goal_baselink_frame[1], goal_baselink_frame[0]))  # [degrees]
+        
+    def target_waypoint(self, standard = True):
         """Calculate the target waypoint in baselink frame.
         """
 
+        if standard or self.waypoints_reached == 0:
+            lat = self.current_target.latitude
+            lon = self.current_target.longitude
+        else:
+            lat = self.waypoints_list[self.waypoints_reached + self.waypoints_reached].x_lat
+            lon = self.waypoints_list[self.waypoints_reached + self.waypoints_reached].y_long
+
         goal_baselink_frame = worldToBaselink(
-            target_lat=self.current_target.latitude, target_lon=self.current_target.longitude,
+            target_lat=lat, target_lon=lon,
             current_location_lat=self.current_location.latitude, current_location_lon=self.current_location.longitude,
             current_yaw=self.current_yaw)
         
-        self.goal_distance = np.linalg.norm(goal_baselink_frame)  # [m]
-        self.goal_angle = np.degrees(np.arctan2(
+        goal_distance = np.linalg.norm(goal_baselink_frame)  # [m]
+        goal_angle = np.degrees(np.arctan2(
             goal_baselink_frame[1], goal_baselink_frame[0]))  # [degrees]
+        
+        return goal_distance, goal_angle
 
     ############################################################################
     # region MAIN CONTROL LOOP CALLBACK
@@ -725,11 +747,14 @@ class ObstacleAvoidance:
         self.valid_ranges = self.average_filter(window_size=5)
 
         # Calculate the target waypoint in baselink frame
-        self.target_waypoint()
+        # self.goal_distance, self.goal_angle =  self.target_waypoint()
 
         # If we are in AUTO mode we must reset the previous guided point angle
         if self.current_state.mode == "AUTO":
             self.previous_guided_point_angle = None
+
+        # Verify the distance to the closest obstacle for 60 degrees in front of the robot
+        closest_in_fov_60, obstacle_angle_60 = self.closest_obstacle_in_central_fov(fov_positions=107)
 
         # Verify the distance to the closest obstacle for 90 degrees in front of the robot
         closest_in_fov_90, obstacle_angle_90 = self.closest_obstacle_in_central_fov()
@@ -751,14 +776,12 @@ class ObstacleAvoidance:
         # rospy.loginfo(f"Subdivisions: {self.actual_lidar_subdivisions} m")
 
         # self.dt_lidar = time() - self.last_command_time
-        # rospy.loginfo(f"dt_lidar: {self.dt_lidar}")
 
         current_time = scan.header.stamp.to_sec()
 
         # Calcula aceleração se houver uma velocidade anterior registrada
         if hasattr(self, 'previous_time_lidar'):
             self.dt_lidar = current_time - self.previous_time_lidar
-            # rospy.loginfo(f"dt_lidar: {self.dt_lidar}")
     
         # Armazena a velocidade e o tempo atuais para a próxima leitura
         self.previous_time_lidar = current_time
@@ -771,7 +794,7 @@ class ObstacleAvoidance:
             closest_in_fov = closest_in_fov_270
         else:
             # Minimun distance to start the avoidance behavior
-            closest_in_fov = closest_in_fov_90
+            closest_in_fov = closest_in_fov_60
 
         if closest_in_fov < self.safety_distance_to_start:
             self.closest_obstacle_distance = closest_in_fov
@@ -784,7 +807,6 @@ class ObstacleAvoidance:
             self.best_v, self.best_w = self.replan_velocity()
             # rospy.loginfo(f"Best v: {self.best_v} m/s, Best w: {self.best_w} rad/s")
 
-            # if time() - self.last_command_time > self.command_sending_interval:
             if time() - self.last_command_time >= self.dt:
 
                 self.setFlightMode(mode="GUIDED")
@@ -792,15 +814,30 @@ class ObstacleAvoidance:
                     self.best_v, self.best_w)
                 self.last_command_time = time()
 
-                # if self.goal_distance < (self.safety_distance_to_start + 0.6):
-                if self.goal_distance < 3.0:
-                    rospy.loginfo("Next waypoint")
+                # Results conference
+                rospy.loginfo(f"obst_dist: {self.closest_obstacle_distance} m, obst_speed: {self.obstacle_speed} m/s, space_input: {self.space_input}")
+                rospy.loginfo(f"Alpha: {self.alpha}, Beta: {self.beta}, Gamma: {self.gamma}")
+
+                # goal_dist_checker, angle_checker = self.target_waypoint(False)
+                self.goal_distance, self.goal_angle = self.target_waypoint(False)
+
+                # if goal_dist_checker <  self.next_waypoint_dist:
+                if self.goal_distance <  self.next_waypoint_dist:
+                    rospy.loginfo("Next waypoint.")
+                    self.waypoints_reached += 1
+
+                    # Validar se é melhor
+                    if self.alpha > 0.7:
+                        self.advance_to_next_waypoint(self.current_waypoint_index + self.waypoints_reached)
+                        self.waypoints_reached = 0
+                        rospy.logwarn("Next waypoint reached")
                     self.advance_to_next_waypoint(self.current_waypoint_index + 1)
-                    """Tentar usar uma thread"""
+
         else:         
             # Verify if the path is completely free ahead and on the sides, if so, finish the obstacle avoidance
             # if time() - self.last_command_time > 5*self.command_sending_interval and self.current_state.mode != "AUTO" and closest_in_fov_270 > self.safety_distance_to_start:
-            if time() - self.last_command_time > 5*self.command_sending_interval and self.current_state.mode != "AUTO" and closest_in_fov_270 > self.safety_distance_to_end:  
+            # if time() - self.last_command_time > 5*self.command_sending_interval and self.current_state.mode != "AUTO" and closest_in_fov_270 > self.safety_distance_to_end:  
+            if time() - self.last_command_time > self.dt and self.current_state.mode != "AUTO" and closest_in_fov_270 > 2: # Define lateral distance to finish the avoidance
                 self.best_v = None
                 self.best_w = None
                 self.lidar_subdivisions = []
@@ -808,13 +845,14 @@ class ObstacleAvoidance:
                 # safe_wp_index = self.find_safe_waypoint()
                 # if safe_wp_index is not None:
                 #     self.advance_to_next_waypoint(safe_wp_index)
+                rospy.logwarn("Obstacle avoidance finished.")
+
+                if self.waypoints_reached != 0:
+                    self.advance_to_next_waypoint(self.current_waypoint_index + self.waypoints_reached)
+                    self.waypoints_reached = 0
 
                 self.setFlightMode(mode="AUTO")
-                self.last_command_time = time()           
-
-            # elif self.best_v is not None and self.best_w is not None:
-            #     self.sendGuidedPointLocalFrame(
-            #         self.max_v, 0.0)
+                # self.last_command_time = time()           
                 
 if __name__ == "__main__":
     try:

@@ -71,7 +71,7 @@ class ObstacleAvoidance:
         self.safety_distance_to_end = 3.0 # [meters] 
         self.safety_distance_to_start = 5.0 # [meters] 3.0, 4.0
         self.valid_ranges = None
-        self.next_waypoint = False
+        self.next_waypoint_dist = 3.0 # [meters]
 
         self.v_reso = 30 # Linear velocity resolution
         self.w_reso = 20 # Angular velocity resolution
@@ -816,7 +816,7 @@ class ObstacleAvoidance:
                 self.last_command_time = time()
 
                 #if self.goal_distance < (self.safety_distance_to_start + 0.6):
-                if self.goal_distance < (3.0):
+                if self.goal_distance < self.next_waypoint_dist:
                     rospy.loginfo("Next waypoint")
                     self.advance_to_next_waypoint(self.current_waypoint_index + 1)
         
