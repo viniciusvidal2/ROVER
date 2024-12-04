@@ -792,11 +792,13 @@ class ObstacleAvoidance:
 
         if self.best_v is not None and self.best_w is not None:
             closest_in_fov = closest_in_fov_270
+            safety_distance = 2.5
         else:
             # Minimun distance to start the avoidance behavior
             closest_in_fov = closest_in_fov_60
+            safety_distance = self.safety_distance_to_start
 
-        if closest_in_fov < self.safety_distance_to_start:
+        if closest_in_fov < safety_distance:
             self.closest_obstacle_distance = closest_in_fov
 
             # if self.debug_mode:
@@ -815,7 +817,7 @@ class ObstacleAvoidance:
                 self.last_command_time = time()
 
                 # Results conference
-                rospy.loginfo(f"obst_dist: {self.closest_obstacle_distance} m, obst_speed: {self.obstacle_speed} m/s, space_input: {self.space_input}")
+                rospy.loginfo(f"obst_dist: {self.min_dist_lidar_subdivisions[1]} m, obst_speed: {self.obstacle_speed} m/s, space_input: {self.space_input}")
                 rospy.loginfo(f"Alpha: {self.alpha}, Beta: {self.beta}, Gamma: {self.gamma}")
 
                 # goal_dist_checker, angle_checker = self.target_waypoint(False)
@@ -827,17 +829,14 @@ class ObstacleAvoidance:
                     self.waypoints_reached += 1
 
                     # Validar se é melhor
-                    if self.alpha > 0.7:
-                        self.advance_to_next_waypoint(self.current_waypoint_index + self.waypoints_reached)
-                        self.waypoints_reached = 0
-                        rospy.logwarn("Next waypoint reached")
-                    self.advance_to_next_waypoint(self.current_waypoint_index + 1)
+                    # if self.alpha > 0.7:
+                    #     self.advance_to_next_waypoint(self.current_waypoint_index + self.waypoints_reached)
+                    #     self.waypoints_reached = 0
+                    #     rospy.logwarn("Next waypoint reached")
 
         else:         
-            # Verify if the path is completely free ahead and on the sides, if so, finish the obstacle avoidance
-            # if time() - self.last_command_time > 5*self.command_sending_interval and self.current_state.mode != "AUTO" and closest_in_fov_270 > self.safety_distance_to_start:
-            # if time() - self.last_command_time > 5*self.command_sending_interval and self.current_state.mode != "AUTO" and closest_in_fov_270 > self.safety_distance_to_end:  
-            if time() - self.last_command_time > self.dt and self.current_state.mode != "AUTO" and closest_in_fov_270 > 2: # Define lateral distance to finish the avoidance
+            # Verify if the path is completely free ahead and on the sides, if so, finish the obstacle avoidance 
+            if time() - self.last_command_time > 2*self.dt and self.current_state.mode != "AUTO" and closest_in_fov_270 > 2.5: # Define lateral distance to finish the avoidance
                 self.best_v = None
                 self.best_w = None
                 self.lidar_subdivisions = []
