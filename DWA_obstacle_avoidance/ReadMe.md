@@ -10,6 +10,7 @@ Usar o abaixo, pois o de cima está dando conflito com o arquivo .param
 ```bash
 sim_vehicle.py -v Rover -f gazebo-rover -L ARGO --console --map
 ```
+Opções de comandos para outras situações
 ```bash
 sim_vehicle.py -v Rover -f gazebo-rover -L ARGO nrover.param --console --map
 sim_vehicle.py -v Rover -f gazebo-rover -L ARGO --console --map --add-param-file nrover.param
@@ -20,6 +21,9 @@ sim_vehicle.py -v Rover -f gazebo-rover -L ARGO --console --map --out=udp:127.0.
 Este deve ser o segundo comando
 ```bash
 roslaunch navigation.launch
+```
+Opções de comandos para outras situações
+```bash
 roslaunch teste_2rovers.launch 
 roslaunch teste_2rovers.launch fcu_url:=udp://:14550@14555 fcu_url_2:=udp://:14570@14575 fcu_url_3:=udp://:14590@14595
 ```

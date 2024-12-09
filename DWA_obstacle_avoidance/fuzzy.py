@@ -82,7 +82,7 @@ def fuzzy_logic_maneuvering_space(space_parts, safety_distance):
 
     return occupancy_rate_output
 
-def fuzzy_logic(dist_input, obst_input, space_input, safety_distance, obst_max_speed=6.0):
+def fuzzy_logic(dist_input, space_input, safety_distance):
     """Find the alpha, beta and gamma that fits best for each situation predicted.
     
     Args:   
@@ -102,44 +102,14 @@ def fuzzy_logic(dist_input, obst_input, space_input, safety_distance, obst_max_s
     # Define fuzzy variables, each variable is created as Antecedent (input) or Consequent (output).
     distancia_to_obstacle = ctrl.Antecedent(np.arange(0, safety_distance, 0.1), 'distance_to_obstacle') # Represent the robot distance to the obstacle
     maneuvering_space = ctrl.Antecedent(np.arange(0, 100, 0.1), 'maneuvering_space')
-    obstacle_velocity = ctrl.Antecedent(np.arange(0, obst_max_speed, 0.1), 'obstacle_velocity')
-    # obstacle_velocity_b = ctrl.Antecedent(np.arange(0, obst_max_speed, 0.1), 'obstacle_velocity_b')
-    # obstacle_velocity_c = ctrl.Antecedent(np.arange(0, obst_max_speed, 0.1), 'obstacle_velocity_c')
     alpha = ctrl.Consequent(np.arange(0, 1, 0.1), 'alpha') 
     beta = ctrl.Consequent(np.arange(0, 1, 0.1), 'beta')
     gamma = ctrl.Consequent(np.arange(0, 1, 0.1), 'gamma')
 
-    # Define parameters for the sigmoidal membership functions
-    # midpoint_1 = safety_distance/2
-    # midpoint_2 = midpoint_1 + 1.0
-    # midpoint_3 = (midpoint_2 - midpoint_1)/2 + midpoint_1
-
-    # Definindo as funções de pertinência para a distância ao obstáculo
-    # distancia_to_obstacle['proxima'] = fuzz.sigmf(distancia_to_obstacle.universe, midpoint_1, -safety_distance)
-    # distancia_to_obstacle['media'] = fuzz.trimf(distancia_to_obstacle.universe, [midpoint_3 - 0.5, midpoint_3, midpoint_3 + 0.5])
-    # distancia_to_obstacle['distante'] = fuzz.sigmf(distancia_to_obstacle.universe, midpoint_2, safety_distance)
-
+    # Define parameters for the membership functions
     distancia_to_obstacle['proxima'] = fuzz.sigmf(distancia_to_obstacle.universe, 2, -safety_distance)
     distancia_to_obstacle['media'] = fuzz.trimf(distancia_to_obstacle.universe, [1.7, 2.0, 2.5])
-    # distancia_to_obstacle['distante'] = fuzz.sigmf(distancia_to_obstacle.universe, 2.5, safety_distance)
     distancia_to_obstacle['distante'] = fuzz.sigmf(distancia_to_obstacle.universe, 3.0, safety_distance)
-
-    # Definindo as funções de pertinência para a velocidade do obstáculo
-    obstacle_velocity['estatico'] = fuzz.trimf(obstacle_velocity.universe, [-obst_max_speed, -obst_max_speed, 1.5])
-    obstacle_velocity['lento'] = fuzz.trimf(obstacle_velocity.universe, [1.0, 1.5, 2.5])
-    obstacle_velocity['rapido'] = fuzz.trimf(obstacle_velocity.universe, [2.0, obst_max_speed, obst_max_speed])
-
-    # obstacle_velocity_b['estatico'] = fuzz.trimf(obstacle_velocity_b.universe, [0, 0, 1.5])
-    # obstacle_velocity_b['lento'] = fuzz.trimf(obstacle_velocity_b.universe, [1.0, 1.5, 2.5])
-    # obstacle_velocity_b['rapido'] = fuzz.trimf(obstacle_velocity_b.universe, [2.0, obst_max_speed, obst_max_speed])
-
-    # obstacle_velocity_c['estatico'] = fuzz.trimf(obstacle_velocity_c.universe, [0, 0, 1.5])
-    # obstacle_velocity_c['lento'] = fuzz.trimf(obstacle_velocity_c.universe, [1.0, 1.5, 2.5])
-    # obstacle_velocity_c['rapido'] = fuzz.trimf(obstacle_velocity_c.universe, [2.0, obst_max_speed, obst_max_speed])
-
-    # Definindo as funções de pertinência para o espaço de manobra
-    # maneuvering_space['limitado'] = fuzz.sigmf(maneuvering_space.universe, 50, -0.1)
-    # maneuvering_space['amplo'] = fuzz.sigmf(maneuvering_space.universe, 75, 0.1)
 
     maneuvering_space['amplo'] = fuzz.sigmf(maneuvering_space.universe, 50, -0.1)
     maneuvering_space['limitado'] = fuzz.sigmf(maneuvering_space.universe, 75, 0.1)
@@ -159,58 +129,34 @@ def fuzzy_logic(dist_input, obst_input, space_input, safety_distance, obst_max_s
 
     # # Plot graphs of relevance (optional)
     # distancia_to_obstacle.view()
-    # obstacle_velocity.view()
-    # # obstacle_velocity_a.view()
-    # # obstacle_velocity_b.view()
-    # # obstacle_velocity_c.view()
     # maneuvering_space.view()
     # alpha.view()
     # beta.view()
     # gamma.view()
 
     # Define fuzzy rules
-    rules.append(ctrl.Rule(distancia_to_obstacle['proxima'] & maneuvering_space['limitado'] & (obstacle_velocity['estatico'] | obstacle_velocity['lento']), alpha['baixo']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['proxima'] & maneuvering_space['limitado'] & (obstacle_velocity['estatico'] | obstacle_velocity['lento']), beta['alto']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['proxima'] & maneuvering_space['limitado'] & (obstacle_velocity['estatico'] | obstacle_velocity['lento']), gamma['baixo']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['proxima'] & maneuvering_space['limitado'] & obstacle_velocity['rapido'], alpha['baixo']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['proxima'] & maneuvering_space['limitado'] & obstacle_velocity['rapido'], beta['alto']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['proxima'] & maneuvering_space['limitado'] & obstacle_velocity['rapido'], gamma['medio']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['proxima'] & maneuvering_space['amplo'] & (obstacle_velocity['estatico'] | obstacle_velocity['lento']), alpha['baixo']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['proxima'] & maneuvering_space['amplo'] & (obstacle_velocity['estatico'] | obstacle_velocity['lento']), beta['alto']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['proxima'] & maneuvering_space['amplo'] & (obstacle_velocity['estatico'] | obstacle_velocity['lento']), gamma['baixo']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['proxima'] & maneuvering_space['amplo'] & obstacle_velocity['rapido'], alpha['baixo']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['proxima'] & maneuvering_space['amplo'] & obstacle_velocity['rapido'], beta['alto']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['proxima'] & maneuvering_space['amplo'] & obstacle_velocity['rapido'], gamma['medio']))
+    rules.append(ctrl.Rule(distancia_to_obstacle['proxima'] & maneuvering_space['limitado'], alpha['baixo']))
+    rules.append(ctrl.Rule(distancia_to_obstacle['proxima'] & maneuvering_space['limitado'], beta['alto']))
+    rules.append(ctrl.Rule(distancia_to_obstacle['proxima'] & maneuvering_space['limitado'], gamma['baixo']))
+    rules.append(ctrl.Rule(distancia_to_obstacle['proxima'] & maneuvering_space['amplo'], alpha['baixo']))
+    rules.append(ctrl.Rule(distancia_to_obstacle['proxima'] & maneuvering_space['amplo'], beta['alto']))
+    rules.append(ctrl.Rule(distancia_to_obstacle['proxima'] & maneuvering_space['amplo'], gamma['baixo']))
 
-    rules.append(ctrl.Rule(distancia_to_obstacle['media'] & maneuvering_space['limitado'] & (obstacle_velocity['estatico'] | obstacle_velocity['lento']), alpha['medio']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['media'] & maneuvering_space['limitado'] & (obstacle_velocity['estatico'] | obstacle_velocity['lento']), beta['medio']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['media'] & maneuvering_space['limitado'] & (obstacle_velocity['estatico'] | obstacle_velocity['lento']), gamma['baixo']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['media'] & maneuvering_space['limitado'] & obstacle_velocity['rapido'], alpha['medio']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['media'] & maneuvering_space['limitado'] & obstacle_velocity['rapido'], beta['medio']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['media'] & maneuvering_space['limitado'] & obstacle_velocity['rapido'], gamma['medio']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['media'] & maneuvering_space['amplo'] & (obstacle_velocity['estatico'] | obstacle_velocity['lento']), alpha['alto']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['media'] & maneuvering_space['amplo'] & (obstacle_velocity['estatico'] | obstacle_velocity['lento']), beta['medio']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['media'] & maneuvering_space['amplo'] & (obstacle_velocity['estatico'] | obstacle_velocity['lento']), gamma['medio']))
-    # rules.append(ctrl.Rule(distancia_to_obstacle['media'] & maneuvering_space['amplo'] & (obstacle_velocity['estatico'] | obstacle_velocity['lento']), gamma['baixo']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['media'] & maneuvering_space['amplo'] & obstacle_velocity['rapido'], alpha['alto']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['media'] & maneuvering_space['amplo'] & obstacle_velocity['rapido'], beta['medio']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['media'] & maneuvering_space['amplo'] & obstacle_velocity['rapido'], gamma['medio']))
+    rules.append(ctrl.Rule(distancia_to_obstacle['media'] & maneuvering_space['limitado'], alpha['medio']))
+    rules.append(ctrl.Rule(distancia_to_obstacle['media'] & maneuvering_space['limitado'], beta['medio']))
+    rules.append(ctrl.Rule(distancia_to_obstacle['media'] & maneuvering_space['limitado'], gamma['baixo']))
+    rules.append(ctrl.Rule(distancia_to_obstacle['media'] & maneuvering_space['amplo'], alpha['alto']))
+    rules.append(ctrl.Rule(distancia_to_obstacle['media'] & maneuvering_space['amplo'], beta['medio']))
+    # rules.append(ctrl.Rule(distancia_to_obstacle['media'] & maneuvering_space['amplo'], gamma['medio']))
+    rules.append(ctrl.Rule(distancia_to_obstacle['media'] & maneuvering_space['amplo'], gamma['baixo']))
 
-    rules.append(ctrl.Rule(distancia_to_obstacle['distante'] & maneuvering_space['amplo'] & (obstacle_velocity['estatico'] | obstacle_velocity['lento']), alpha['alto']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['distante'] & maneuvering_space['amplo'] & (obstacle_velocity['estatico'] | obstacle_velocity['lento']), beta['baixo']))
-    # rules.append(ctrl.Rule(distancia_to_obstacle['distante'] & maneuvering_space['amplo'] & (obstacle_velocity['estatico'] | obstacle_velocity['lento']), gamma['alto']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['distante'] & maneuvering_space['amplo'] & (obstacle_velocity['estatico'] | obstacle_velocity['lento']), gamma['medio']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['distante'] & maneuvering_space['limitado'] & (obstacle_velocity['estatico'] | obstacle_velocity['lento']), alpha['alto']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['distante'] & maneuvering_space['limitado'] & (obstacle_velocity['estatico'] | obstacle_velocity['lento']), beta['baixo']))
-    # rules.append(ctrl.Rule(distancia_to_obstacle['distante'] & maneuvering_space['limitado'] & (obstacle_velocity['estatico'] | obstacle_velocity['lento']), gamma['medio']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['distante'] & maneuvering_space['limitado'] & (obstacle_velocity['estatico'] | obstacle_velocity['lento']), gamma['baixo']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['distante'] & maneuvering_space['amplo'] & (obstacle_velocity['rapido']), alpha['alto']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['distante'] & maneuvering_space['amplo'] & (obstacle_velocity['rapido']), beta['baixo']))
-    # rules.append(ctrl.Rule(distancia_to_obstacle['distante'] & maneuvering_space['amplo'] & (obstacle_velocity['rapido']), gamma['alto']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['distante'] & maneuvering_space['amplo'] & (obstacle_velocity['rapido']), gamma['medio']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['distante'] & maneuvering_space['limitado'] & (obstacle_velocity['rapido']), alpha['alto']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['distante'] & maneuvering_space['limitado'] & (obstacle_velocity['rapido']), beta['baixo']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['distante'] & maneuvering_space['limitado'] & (obstacle_velocity['rapido']), gamma['medio']))
+    rules.append(ctrl.Rule(distancia_to_obstacle['distante'] & maneuvering_space['amplo'], alpha['alto']))
+    rules.append(ctrl.Rule(distancia_to_obstacle['distante'] & maneuvering_space['amplo'], beta['baixo']))
+    # rules.append(ctrl.Rule(distancia_to_obstacle['distante'] & maneuvering_space['amplo'], gamma['medio']))
+    rules.append(ctrl.Rule(distancia_to_obstacle['distante'] & maneuvering_space['amplo'], gamma['baixo']))
+    rules.append(ctrl.Rule(distancia_to_obstacle['distante'] & maneuvering_space['limitado'], alpha['alto']))
+    rules.append(ctrl.Rule(distancia_to_obstacle['distante'] & maneuvering_space['limitado'], beta['baixo']))
+    rules.append(ctrl.Rule(distancia_to_obstacle['distante'] & maneuvering_space['limitado'], gamma['baixo']))
 
     # Fuzzy controller
     controlador_velocidade = ctrl.ControlSystem(rules)
@@ -218,10 +164,6 @@ def fuzzy_logic(dist_input, obst_input, space_input, safety_distance, obst_max_s
 
     # Input values for simulation
     simulator.input['distance_to_obstacle'] = dist_input
-    simulator.input['obstacle_velocity'] = obst_input
-    # simulator.input['obstacle_velocity_a'] = obst_input[0]
-    # simulator.input['obstacle_velocity_b'] = obst_input[1]
-    # simulator.input['obstacle_velocity_c'] = obst_input[2]
     simulator.input['maneuvering_space'] = space_input
 
     # Simulation
