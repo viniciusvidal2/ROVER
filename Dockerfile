@@ -98,8 +98,10 @@ COPY DynamixelSDK /home/rover/src/DynamixelSDK
 WORKDIR /home/rover/src/DynamixelSDK/python
 RUN python3 setup.py install
 
-# Instal geographic dependencies
+# Install geographic dependencies
 RUN pip install utm datetime
+# Install other dependencies
+RUN pip install scikit-fuzzy networkx
 
 # Install REST API dependencies
 RUN pip install flask flask_cors roslibpy
@@ -109,6 +111,7 @@ RUN apt-get install -y ros-noetic-rosbridge-suite
 WORKDIR /home/rover/
 COPY livox_ros_driver2 /home/rover/src/livox_ros_driver2
 COPY mig_obstacle_avoidance /home/rover/src/mig_obstacle_avoidance
+COPY DWA_obstacle_avoidance /home/rover/src/DWA_obstacle_avoidance
 COPY camera_transmitter /home/rover/src/camera_transmitter
 COPY livox_filter_mig /home/rover/src/livox_filter_mig
 COPY dynamixel_controller /home/rover/src/dynamixel_controller
@@ -117,6 +120,7 @@ COPY REST_API /home/rover/src/REST_API
 COPY FAST_LIO /home/rover/src/FAST_LIO
 RUN chmod +x /home/rover/src/camera_transmitter/scripts/*.py
 RUN chmod +x /home/rover/src/mig_obstacle_avoidance/ros/scripts/*.py
+RUN chmod +x /home/rover/src/DWA_obstacle_avoidance/scripts/*.py
 RUN chmod +x /home/rover/src/dynamixel_controller/scripts/*.py
 RUN chmod +x /home/rover/src/REST_API/scripts/*.py
 RUN catkin build -j1
