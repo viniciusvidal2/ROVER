@@ -5,6 +5,7 @@ from mavros_msgs.srv import SetMode, WaypointSetCurrent, CommandTOL
 from sensor_msgs.msg import NavSatFix, LaserScan
 from std_msgs.msg import Float64, Header
 from sensor_msgs.msg import LaserScan
+from geometry_msgs.msg import TwistStamped
 from visualization_msgs.msg import MarkerArray, Marker
 import numpy as np
 from time import time
@@ -90,8 +91,10 @@ class ObstacleAvoidance:
                          WaypointList, self.missionWaypointsCallback, queue_size=1)
         rospy.Subscriber("/mavros/home_position/home",
                          HomePosition, self.homePositionCallback, queue_size=1)
-        rospy.Subscriber('/mavros/local_position/odom',
-                         Odometry, self.odomCallback)
+        # rospy.Subscriber('/mavros/local_position/odom',
+        #                  Odometry, self.odomCallback)
+        rospy.Subscriber('/mavros/local_position/velocity_body',
+                         TwistStamped, self.odomCallback)
 
         # Publishers
         self.setpoint_global_pub = rospy.Publisher(
@@ -151,6 +154,28 @@ class ObstacleAvoidance:
                 # rospy.loginfo(f"v: {self.v} m/s, w: {self.w} rad/s, acc: {self.acceleration} m/s²")
 
         # Armazena a velocidade e o tempo atuais para a próxima leitura
+        self.previous_velocity = self.v
+        self.previous_time = current_time
+
+    def odomCallback(self, msg: TwistStamped) -> None:
+        """Receive velocity data in body frame. 
+
+        Args:
+            msg (TwistStamped): Velocity message from mavros
+        """
+        self.v = msg.twist.linear.x  # [m/s]
+        self.w = msg.twist.angular.z  # [rad/s]
+        current_time = msg.header.stamp.to_sec()
+
+        # Calculate acceleration if not first run
+        if hasattr(self, 'previous_velocity') and hasattr(self, 'previous_time'):
+            self.dt = current_time - self.previous_time
+            # rospy.loginfo(f"dt: {self.dt}")
+            if self.dt > 0:
+                self.acceleration = (self.v - self.previous_velocity) / self.dt
+                # rospy.loginfo(f"v: {self.v} m/s, w: {self.w} rad/s, acc: {self.acceleration} m/s²")
+
+        # Update internal variables
         self.previous_velocity = self.v
         self.previous_time = current_time
 
