@@ -20,6 +20,8 @@ def fuzzy_logic_maneuvering_space(space_parts, safety_distance):
         
     Returns:
         occupancy_rate_output (float): occupancy rate of the obstacle area."""
+    
+    rules = []
 
     # Define fuzzy variables, each variable is created as Antecedent (input) or Consequent (output).
     distancia_a = ctrl.Antecedent(np.arange(0, safety_distance, 0.1), 'distance_a')
@@ -32,38 +34,39 @@ def fuzzy_logic_maneuvering_space(space_parts, safety_distance):
     midpoint_2 = midpoint_1 + 1.0
 
     # Define the sigmoidal membership functions for the distance to the obstacle
-    distancia_a['perto'] = fuzz.sigmf(distancia_a.universe, midpoint_1, -safety_distance)  # ajusta o ponto médio e a inclinação -10
-    distancia_a['distante'] = fuzz.sigmf(distancia_a.universe, midpoint_2, safety_distance)
+    distancia_a['near'] = fuzz.sigmf(distancia_a.universe, midpoint_1, -safety_distance)  # ajusta o ponto médio e a inclinação -10
+    distancia_a['far'] = fuzz.sigmf(distancia_a.universe, midpoint_2, safety_distance)
 
-    distancia_b['perto'] = fuzz.sigmf(distancia_b.universe, midpoint_1, -safety_distance)
-    distancia_b['distante'] = fuzz.sigmf(distancia_b.universe, midpoint_2, safety_distance)
+    distancia_b['near'] = fuzz.sigmf(distancia_b.universe, midpoint_1, -safety_distance)
+    distancia_b['far'] = fuzz.sigmf(distancia_b.universe, midpoint_2, safety_distance)
 
-    distancia_c['perto'] = fuzz.sigmf(distancia_c.universe, midpoint_1, -safety_distance)
-    distancia_c['distante'] = fuzz.sigmf(distancia_c.universe, midpoint_2, safety_distance)
+    distancia_c['near'] = fuzz.sigmf(distancia_c.universe, midpoint_1, -safety_distance)
+    distancia_c['far'] = fuzz.sigmf(distancia_c.universe, midpoint_2, safety_distance)
 
     # Define the sigmoidal membership functions for the occupancy rate
-    occupancy_rate['amplo'] = fuzz.sigmf(occupancy_rate.universe, 50, -0.1)
-    occupancy_rate['limitado'] = fuzz.sigmf(occupancy_rate.universe, 75, 0.1)
+    occupancy_rate['wide'] = fuzz.sigmf(occupancy_rate.universe, 50, -0.1)
+    occupancy_rate['limited'] = fuzz.sigmf(occupancy_rate.universe, 75, 0.1)
 
-    # Plot graphs of relevance (optional)
+    # # Plot graphs of relevance (optional)
     # distancia_a.view()
     # distancia_b.view()
     # distancia_c.view()
     # occupancy_rate.view()
 
     # Fuzzy rules
-    rule1 = ctrl.Rule(distancia_a['perto'] & distancia_b['perto'] & distancia_c['perto'], occupancy_rate['limitado'])
-    rule2 = ctrl.Rule(distancia_a['perto'] & distancia_b['distante'] & distancia_c['perto'], occupancy_rate['limitado'])
-    rule3 = ctrl.Rule(distancia_a['perto'] & distancia_b['perto'] & distancia_c['distante'], occupancy_rate['limitado'])
-    rule4 = ctrl.Rule(distancia_a['perto'] & distancia_b['distante'] & distancia_c['distante'], occupancy_rate['amplo'])
+    rules.append(ctrl.Rule(distancia_a['near'] & distancia_b['near'] & distancia_c['near'], occupancy_rate['limited']))
+    # rule2 = ctrl.Rule(distancia_a['near'] & distancia_b['far'] & distancia_c['near'], occupancy_rate['limited'])
+    rules.append(ctrl.Rule(distancia_a['near'] & distancia_b['near'] & distancia_c['far'], occupancy_rate['limited']))
+    rules.append(ctrl.Rule(distancia_a['far'] & distancia_b['near'] & distancia_c['near'], occupancy_rate['limited']))
+    rules.append(ctrl.Rule(distancia_a['far'] & distancia_b['near'] & distancia_c['far'], occupancy_rate['limited']))
 
-    rule5 = ctrl.Rule(distancia_a['distante'] & distancia_b['perto'] & distancia_c['perto'], occupancy_rate['limitado'])
-    rule6 = ctrl.Rule(distancia_a['distante'] & distancia_b['distante'] & distancia_c['perto'], occupancy_rate['amplo'])
-    rule7 = ctrl.Rule(distancia_a['distante'] & distancia_b['perto'] & distancia_c['distante'], occupancy_rate['amplo'])
-    rule8 = ctrl.Rule(distancia_a['distante'] & distancia_b['distante'] & distancia_c['distante'], occupancy_rate['amplo'])
+    rules.append(ctrl.Rule(distancia_a['near'] & distancia_b['far'] & distancia_c['near'], occupancy_rate['wide']))
+    rules.append(ctrl.Rule(distancia_a['near'] & distancia_b['far'] & distancia_c['far'], occupancy_rate['wide']))
+    rules.append(ctrl.Rule(distancia_a['far'] & distancia_b['far'] & distancia_c['near'], occupancy_rate['wide']))
+    rules.append(ctrl.Rule(distancia_a['far'] & distancia_b['far'] & distancia_c['far'], occupancy_rate['wide']))
 
     # Fuzzy controller
-    occupancy_rate_indicator = ctrl.ControlSystem([rule1, rule2, rule3, rule4, rule5, rule6, rule7, rule8])
+    occupancy_rate_indicator = ctrl.ControlSystem(rules)
     simulator = ctrl.ControlSystemSimulation(occupancy_rate_indicator)
 
     # Input values for simulation
@@ -107,25 +110,25 @@ def fuzzy_logic(dist_input, space_input, safety_distance):
     gamma = ctrl.Consequent(np.arange(0, 1, 0.1), 'gamma')
 
     # Define parameters for the membership functions
-    distancia_to_obstacle['proxima'] = fuzz.sigmf(distancia_to_obstacle.universe, 2, -safety_distance)
-    distancia_to_obstacle['media'] = fuzz.trimf(distancia_to_obstacle.universe, [1.7, 2.0, 2.5])
-    distancia_to_obstacle['distante'] = fuzz.sigmf(distancia_to_obstacle.universe, 3.0, safety_distance)
+    distancia_to_obstacle['near'] = fuzz.sigmf(distancia_to_obstacle.universe, 2, -safety_distance)
+    distancia_to_obstacle['medium'] = fuzz.trimf(distancia_to_obstacle.universe, [1.7, 2.0, 2.5])
+    distancia_to_obstacle['distant'] = fuzz.sigmf(distancia_to_obstacle.universe, 3.0, safety_distance)
 
-    maneuvering_space['amplo'] = fuzz.sigmf(maneuvering_space.universe, 50, -0.1)
-    maneuvering_space['limitado'] = fuzz.sigmf(maneuvering_space.universe, 75, 0.1)
+    maneuvering_space['wide'] = fuzz.sigmf(maneuvering_space.universe, 50, -0.1)
+    maneuvering_space['limited'] = fuzz.sigmf(maneuvering_space.universe, 75, 0.1)
 
     # Definindo as funções de pertinência para os valores de saída
-    alpha['baixo'] = fuzz.trimf(alpha.universe, [0, 0, 0.6])
-    alpha['medio'] = fuzz.trimf(alpha.universe, [0.5, 0.7, 0.7])
-    alpha['alto'] = fuzz.trimf(alpha.universe, [0.7, 1, 1])
+    alpha['low'] = fuzz.trimf(alpha.universe, [0, 0, 0.6])
+    alpha['medium'] = fuzz.trimf(alpha.universe, [0.5, 0.7, 0.7])
+    alpha['high'] = fuzz.trimf(alpha.universe, [0.7, 1, 1])
 
-    beta['baixo'] = fuzz.trimf(beta.universe, [0, 0, 0.6])
-    beta['medio'] = fuzz.trimf(beta.universe, [0.5, 0.7, 0.7])
-    beta['alto'] = fuzz.trimf(beta.universe, [0.7, 1, 1])
+    beta['low'] = fuzz.trimf(beta.universe, [0, 0, 0.6])
+    beta['medium'] = fuzz.trimf(beta.universe, [0.5, 0.7, 0.7])
+    beta['high'] = fuzz.trimf(beta.universe, [0.7, 1, 1])
 
-    gamma['baixo'] = fuzz.trimf(gamma.universe, [0, 0, 0.5])
-    gamma['medio'] = fuzz.trimf(gamma.universe, [0.4, 0.7, 0.7])
-    gamma['alto'] = fuzz.trimf(gamma.universe, [0.7, 1, 1])
+    gamma['low'] = fuzz.trimf(gamma.universe, [0, 0, 0.5])
+    gamma['medium'] = fuzz.trimf(gamma.universe, [0.4, 0.7, 0.7])
+    gamma['high'] = fuzz.trimf(gamma.universe, [0.7, 1, 1])
 
     # # Plot graphs of relevance (optional)
     # distancia_to_obstacle.view()
@@ -135,28 +138,28 @@ def fuzzy_logic(dist_input, space_input, safety_distance):
     # gamma.view()
 
     # Define fuzzy rules
-    rules.append(ctrl.Rule(distancia_to_obstacle['proxima'] & maneuvering_space['limitado'], alpha['baixo']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['proxima'] & maneuvering_space['limitado'], beta['alto']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['proxima'] & maneuvering_space['limitado'], gamma['baixo']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['proxima'] & maneuvering_space['amplo'], alpha['baixo']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['proxima'] & maneuvering_space['amplo'], beta['alto']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['proxima'] & maneuvering_space['amplo'], gamma['baixo']))
+    rules.append(ctrl.Rule(distancia_to_obstacle['near'] & maneuvering_space['limited'], alpha['low']))
+    rules.append(ctrl.Rule(distancia_to_obstacle['near'] & maneuvering_space['limited'], beta['high']))
+    rules.append(ctrl.Rule(distancia_to_obstacle['near'] & maneuvering_space['limited'], gamma['low']))
+    # rules.append(ctrl.Rule(distancia_to_obstacle['near'] & maneuvering_space['wide'], alpha['low']))
+    rules.append(ctrl.Rule(distancia_to_obstacle['near'] & maneuvering_space['wide'], alpha['medium']))
+    rules.append(ctrl.Rule(distancia_to_obstacle['near'] & maneuvering_space['wide'], beta['high']))
+    rules.append(ctrl.Rule(distancia_to_obstacle['near'] & maneuvering_space['wide'], gamma['low']))
 
-    rules.append(ctrl.Rule(distancia_to_obstacle['media'] & maneuvering_space['limitado'], alpha['medio']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['media'] & maneuvering_space['limitado'], beta['medio']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['media'] & maneuvering_space['limitado'], gamma['baixo']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['media'] & maneuvering_space['amplo'], alpha['alto']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['media'] & maneuvering_space['amplo'], beta['medio']))
-    # rules.append(ctrl.Rule(distancia_to_obstacle['media'] & maneuvering_space['amplo'], gamma['medio']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['media'] & maneuvering_space['amplo'], gamma['baixo']))
+    rules.append(ctrl.Rule(distancia_to_obstacle['medium'] & maneuvering_space['limited'], alpha['medium']))
+    rules.append(ctrl.Rule(distancia_to_obstacle['medium'] & maneuvering_space['limited'], beta['medium']))
+    rules.append(ctrl.Rule(distancia_to_obstacle['medium'] & maneuvering_space['limited'], gamma['low']))
+    rules.append(ctrl.Rule(distancia_to_obstacle['medium'] & maneuvering_space['wide'], alpha['high']))
+    rules.append(ctrl.Rule(distancia_to_obstacle['medium'] & maneuvering_space['wide'], beta['low']))
+    rules.append(ctrl.Rule(distancia_to_obstacle['medium'] & maneuvering_space['wide'], gamma['low']))
 
-    rules.append(ctrl.Rule(distancia_to_obstacle['distante'] & maneuvering_space['amplo'], alpha['alto']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['distante'] & maneuvering_space['amplo'], beta['baixo']))
-    # rules.append(ctrl.Rule(distancia_to_obstacle['distante'] & maneuvering_space['amplo'], gamma['medio']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['distante'] & maneuvering_space['amplo'], gamma['baixo']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['distante'] & maneuvering_space['limitado'], alpha['alto']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['distante'] & maneuvering_space['limitado'], beta['baixo']))
-    rules.append(ctrl.Rule(distancia_to_obstacle['distante'] & maneuvering_space['limitado'], gamma['baixo']))
+    rules.append(ctrl.Rule(distancia_to_obstacle['distant'] & maneuvering_space['limited'], alpha['high']))
+    rules.append(ctrl.Rule(distancia_to_obstacle['distant'] & maneuvering_space['limited'], beta['low']))
+    rules.append(ctrl.Rule(distancia_to_obstacle['distant'] & maneuvering_space['limited'], gamma['low']))
+    rules.append(ctrl.Rule(distancia_to_obstacle['distant'] & maneuvering_space['wide'], alpha['high']))
+    rules.append(ctrl.Rule(distancia_to_obstacle['distant'] & maneuvering_space['wide'], beta['low']))
+    rules.append(ctrl.Rule(distancia_to_obstacle['distant'] & maneuvering_space['wide'], gamma['low']))
+
 
     # Fuzzy controller
     controlador_velocidade = ctrl.ControlSystem(rules)
@@ -189,13 +192,13 @@ def fuzzy_logic(dist_input, space_input, safety_distance):
 
 # # space_input = fuzzy_logic_maneuvering_space(parts, safety_distance)
 # space_input = 28.12013594785211
-# alpha, beta, gamma = fuzzy_logic(dist_input, obst_input, space_input, safety_distance)
+# alpha, beta, gamma = fuzzy_logic(dist_input, space_input, safety_distance)
 # print(f"Alpha: {alpha:.2f}, Beta: {beta:.2f}, Gamma: {gamma:.2f}")
 
 
 # # Exemplo de uso
 # parts = [1.0, 1.0, 3.0]
-# safety_distance = 3.0
+# safety_distance = 5.0
 
 # proximity = fuzzy_logic_maneuvering_space(parts, safety_distance)
 # print(f"Proximity: {proximity:.2f}")
