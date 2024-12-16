@@ -11,22 +11,26 @@ from skfuzzy import control as ctrl
 # OUTPUTS
 # alpha, beta, gamma
 
-def fuzzy_logic_maneuvering_space(space_parts, safety_distance):
+
+def fuzzyLogicManeuveringSpace(space_parts, safety_distance):
     """Find the occupancy rate of the obstacle area to discover the available maneuvering space.
-    
+
     Args:
         space_parts (list): mean distance values of parts that divide the space.
         safety_distance (float): safety distance that define obstacle influence area.
-        
+
     Returns:
         occupancy_rate_output (float): occupancy rate of the obstacle area."""
     
     rules = []
 
     # Define fuzzy variables, each variable is created as Antecedent (input) or Consequent (output).
-    distancia_a = ctrl.Antecedent(np.arange(0, safety_distance, 0.1), 'distance_a')
-    distancia_b = ctrl.Antecedent(np.arange(0, safety_distance, 0.1), 'distance_b')
-    distancia_c = ctrl.Antecedent(np.arange(0, safety_distance, 0.1), 'distance_c')
+    distancia_a = ctrl.Antecedent(
+        np.arange(0, safety_distance, 0.1), 'distance_a')
+    distancia_b = ctrl.Antecedent(
+        np.arange(0, safety_distance, 0.1), 'distance_b')
+    distancia_c = ctrl.Antecedent(
+        np.arange(0, safety_distance, 0.1), 'distance_c')
     occupancy_rate = ctrl.Consequent(np.arange(0, 100, 1), 'occupancy_rate')
 
     # Define parameters for the sigmoidal membership functions
@@ -85,27 +89,31 @@ def fuzzy_logic_maneuvering_space(space_parts, safety_distance):
 
     return occupancy_rate_output
 
-def fuzzy_logic(dist_input, space_input, safety_distance):
+
+def fuzzyLogic(dist_input, space_input, safety_distance):
     """Find the alpha, beta and gamma that fits best for each situation predicted.
-    
+
     Args:   
         dist_input (float): distance to the nearest obstacle in m.
         obst_input (list): obstacle velocity in m/s.
         space_input (float): maneuvering space in m.
         safety_distance (float): safety distance that define obstacle influence area.
         obst_max_speed (float): maximum speed of the obstacle in m/s.
-    
+
     Returns:
         alpha_output (float): alpha value.
         beta_output (float): beta value.
         gamma_output (float): gamma value."""
-    
+
     rules = []
 
     # Define fuzzy variables, each variable is created as Antecedent (input) or Consequent (output).
-    distancia_to_obstacle = ctrl.Antecedent(np.arange(0, safety_distance, 0.1), 'distance_to_obstacle') # Represent the robot distance to the obstacle
-    maneuvering_space = ctrl.Antecedent(np.arange(0, 100, 0.1), 'maneuvering_space')
-    alpha = ctrl.Consequent(np.arange(0, 1, 0.1), 'alpha') 
+    # Represent the robot distance to the obstacle
+    distancia_to_obstacle = ctrl.Antecedent(
+        np.arange(0, safety_distance, 0.1), 'distance_to_obstacle')
+    maneuvering_space = ctrl.Antecedent(
+        np.arange(0, 100, 0.1), 'maneuvering_space')
+    alpha = ctrl.Consequent(np.arange(0, 1, 0.1), 'alpha')
     beta = ctrl.Consequent(np.arange(0, 1, 0.1), 'beta')
     gamma = ctrl.Consequent(np.arange(0, 1, 0.1), 'gamma')
 
@@ -190,7 +198,7 @@ def fuzzy_logic(dist_input, space_input, safety_distance):
 # safety_distance = 5.0 # 3
 # # parts = [3.0, 3.0, 3.0]
 
-# # space_input = fuzzy_logic_maneuvering_space(parts, safety_distance)
+# # space_input = fuzzyLogicManeuveringSpace(parts, safety_distance)
 # space_input = 28.12013594785211
 # alpha, beta, gamma = fuzzy_logic(dist_input, space_input, safety_distance)
 # print(f"Alpha: {alpha:.2f}, Beta: {beta:.2f}, Gamma: {gamma:.2f}")
@@ -200,5 +208,5 @@ def fuzzy_logic(dist_input, space_input, safety_distance):
 # parts = [1.0, 1.0, 3.0]
 # safety_distance = 5.0
 
-# proximity = fuzzy_logic_maneuvering_space(parts, safety_distance)
+# proximity = fuzzyLogicManeuveringSpace(parts, safety_distance)
 # print(f"Proximity: {proximity:.2f}")
