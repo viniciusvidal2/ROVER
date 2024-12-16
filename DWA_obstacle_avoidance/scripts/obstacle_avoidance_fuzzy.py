@@ -416,9 +416,9 @@ class ObstacleAvoidance:
         best_v, best_w = 0, 0
 
         # Apply fuzzy logic to discover alpha, beta and gamma 
-        self.space_input = fuzzy_logic_maneuvering_space(self.actual_lidar_subdivisions, self.safety_distance_to_start)  
+        self.space_input = fuzzyLogicManeuveringSpace(self.actual_lidar_subdivisions, self.safety_distance_to_start)  
         # self.alpha, self.beta, self.gamma = fuzzy_logic(self.min_dist_lidar_subdivisions[1], self.space_input, self.safety_distance_to_start)
-        self.alpha, self.beta, self.gamma = fuzzy_logic(self.closest_obstacle_distance, self.space_input, self.safety_distance_to_start)
+        self.alpha, self.beta, self.gamma = fuzzyLogic(self.closest_obstacle_distance, self.space_input, self.safety_distance_to_start)
 
         for v in np.linspace(min_v, max_v, num=self.v_reso):
             for w in np.linspace(min_w, max_w, num=self.w_reso):
@@ -645,17 +645,17 @@ class ObstacleAvoidance:
         self.findManeuveringSpace()
 
         # if self.best_v is not None and self.best_w is not None:
-        if closest_in_fov_50 > self.safety_distance_to_start:
+        if closest_in_fov_60 > self.safety_distance_to_start:
             closest_in_fov = closest_in_fov_270
             safety_distance = 2.5
             
         else:
             # Minimun distance to start the avoidance behavior
-            closest_in_fov = closest_in_fov_50
+            closest_in_fov = closest_in_fov_60
             safety_distance = self.safety_distance_to_start
 
         if closest_in_fov < safety_distance: 
-            self.closest_obstacle_distance = closest_in_fov_50    
+            self.closest_obstacle_distance = closest_in_fov_60    
 
             # REPLAN VELOCITY - DWA
             self.best_v, self.best_w = self.replanVelocity()
@@ -683,7 +683,7 @@ class ObstacleAvoidance:
 
         else:         
             # Verify if the path is completely free ahead and on the sides, if so, finish the obstacle avoidance 
-            if time() - self.last_command_time > 2*self.dt and self.current_state.mode != "AUTO" and closest_in_fov_270 > 2.5 and closest_in_fov_50 > self.safety_distance_to_start: # Define lateral distance to finish the avoidance
+            if time() - self.last_command_time > 2*self.dt and self.current_state.mode != "AUTO" and closest_in_fov_270 > 2.5 and closest_in_fov_60 > self.safety_distance_to_start: # Define lateral distance to finish the avoidance
                 self.best_v = None
                 self.best_w = None
                 self.lidar_subdivisions = []
