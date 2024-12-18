@@ -110,7 +110,7 @@ WORKDIR /home/rover/
 COPY livox_ros_driver2 /home/rover/src/livox_ros_driver2
 COPY mig_obstacle_avoidance /home/rover/src/mig_obstacle_avoidance
 COPY camera_transmitter /home/rover/src/camera_transmitter
-COPY livox_filter_mig /home/rover/src/livox_filter_mig
+COPY ptc_scan_processing /home/rover/src/ptc_scan_processing
 COPY dynamixel_controller /home/rover/src/dynamixel_controller
 COPY slam-sensor-fusion /home/rover/src/slam-sensor-fusion
 COPY REST_API /home/rover/src/REST_API

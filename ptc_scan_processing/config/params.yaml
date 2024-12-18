@@ -1,0 +1,26 @@
+raw_cloud_filter:
+    apply_filter: true
+    filter_rover_points: true
+    filter_range: true
+    filter_intensity: true
+    debug_cloud: true
+
+    rover_lengh: 0.6 # meters
+    rover_width: 0.6 # meters
+    livox_height_from_floor: 0.75 # meters
+    max_xy_range: 15.0 # meters
+    min_intensity: 0
+    frontal_fov: 270.0 # degrees, half to each side, centre looking forward
+
+pointcloud2scan:
+    angle_resolution: 5.0 # degrees 
+
+livox2scan:
+    input_frame: "livox_frame"
+    output_frame: "body"
+    x: 0.0
+    y: 0.0
+    z: 0.0
+    roll: 180.0 # degrees
+    pitch: 0.0 # degrees
+    yaw: 0.0 # degrees
