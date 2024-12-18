@@ -112,7 +112,7 @@ COPY obstacle_avoidance /home/rover/src/obstacle_avoidance
 COPY camera_transmitter /home/rover/src/camera_transmitter
 COPY ptc_scan_processing /home/rover/src/ptc_scan_processing
 COPY dynamixel_controller /home/rover/src/dynamixel_controller
-COPY slam-sensor-fusion /home/rover/src/slam-sensor-fusion
+COPY slam_packages /home/rover/src/slam_packages
 COPY REST_API /home/rover/src/REST_API
 COPY FAST_LIO /home/rover/src/FAST_LIO
 RUN chmod +x /home/rover/src/camera_transmitter/scripts/*.py
