@@ -113,6 +113,7 @@ COPY camera_transmitter /home/rover/src/camera_transmitter
 COPY ptc_scan_processing /home/rover/src/ptc_scan_processing
 COPY dynamixel_controller /home/rover/src/dynamixel_controller
 COPY slam_packages /home/rover/src/slam_packages
+COPY vehicle_params /home/rover/src/vehicle_params
 COPY REST_API /home/rover/src/REST_API
 COPY FAST_LIO /home/rover/src/FAST_LIO
 RUN chmod +x /home/rover/src/camera_transmitter/scripts/*.py

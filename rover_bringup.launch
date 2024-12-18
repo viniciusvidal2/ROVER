@@ -20,8 +20,8 @@
     
     <!-- Launch Mavros related node -->
 	<include file="$(find mavros)/launch/node.launch">
-        <arg name="pluginlists_yaml" value="$(find obstacle_avoidance)/config/mavros/apm_pluginlists.yaml" />
-        <arg name="config_yaml" value="$(find obstacle_avoidance)/config/mavros/apm_config.yaml" />
+        <arg name="pluginlists_yaml" value="$(find vehicle_params)/config/apm_pluginlists.yaml" />
+        <arg name="config_yaml" value="$(find vehicle_params)/config/apm_config.yaml" />
         <arg name="fcu_url" value="$(arg fcu_url)" />
         <arg name="gcs_url" value="$(arg gcs_url)" />
         <arg name="tgt_system" value="$(arg tgt_system)" />
