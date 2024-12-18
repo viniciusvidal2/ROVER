@@ -1,7 +1,3 @@
 [submodule "Livox-SDK2"]
 	path = Livox-SDK2
 	url = https://github.com/Livox-SDK/Livox-SDK2.git
-[submodule "slam-sensor-fusion"]
-	path = slam-sensor-fusion
-	url = https://github.com/viniciusvidal2/slam-sensor-fusion.git
-	branch = ros1
