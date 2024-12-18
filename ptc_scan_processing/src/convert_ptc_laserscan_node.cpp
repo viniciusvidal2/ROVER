@@ -5,7 +5,7 @@
 #include <math.h>
 #include <unordered_map>
 
-#include "cloud_filter.h"
+#include "cloud_scan_converter.h"
 
 
 int main(int argc, char **argv)
@@ -86,8 +86,8 @@ int main(int argc, char **argv)
   frames["in_frame"] = in_frame;
   frames["out_frame"] = out_frame;
 
-  // Create the cloud filter object
-  CloudFilter cloud_filter(nh, params, flags, frames);
+  // Create the cloud scan converter object
+  CloudScanConverter cloud_scan_converter(nh, params, flags, frames);
   
   ROS_INFO("Listening to sensors data ...");
   ros::spin();

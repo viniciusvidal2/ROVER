@@ -23,6 +23,6 @@ include_directories(
   ${PCL_INCLUDE_DIRS}
 )
 
-add_executable(filter_raw_cloud_node src/filter_raw_livox_cloud_node.cpp src/cloud_filter.cpp)
-target_link_libraries(filter_raw_cloud_node ${catkin_LIBRARIES} ${PCL_LIBRARIES})
-add_dependencies(filter_raw_cloud_node ${catkin_EXPORTED_TARGETS})
+add_executable(convert_ptc_laserscan_node src/convert_ptc_laserscan_node.cpp src/cloud_scan_converter.cpp)
+target_link_libraries(convert_ptc_laserscan_node ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+add_dependencies(convert_ptc_laserscan_node ${catkin_EXPORTED_TARGETS})

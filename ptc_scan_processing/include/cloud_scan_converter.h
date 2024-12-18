@@ -22,13 +22,13 @@
 typedef pcl::PointXYZI PointIn;
 
 
-class CloudFilter 
+class CloudScanConverter 
 {
 public:
-    CloudFilter(ros::NodeHandle &nh, std::unordered_map<std::string, float> &params, std::unordered_map<std::string, bool> &flags,
+    CloudScanConverter(ros::NodeHandle &nh, std::unordered_map<std::string, float> &params, std::unordered_map<std::string, bool> &flags,
                 std::unordered_map<std::string, std::string> &frames) ;
 
-    ~CloudFilter() = default;
+    ~CloudScanConverter() = default;
 
     // Cloud callback
     void cloudCallback(const sensor_msgs::PointCloud2ConstPtr &cloud_msg);

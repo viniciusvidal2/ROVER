@@ -17,7 +17,6 @@
   <build_depend>pcl_conversions</build_depend>
   <build_depend>geometry_msgs</build_depend>
   <run_depend>roscpp</run_depend>
-  <run_depend>cuda</run_depend>
   <run_depend>sensor_msgs</run_depend>
   <run_depend>std_msgs</run_depend>
   <run_depend>pcl_ros</run_depend>
