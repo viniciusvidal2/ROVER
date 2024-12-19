@@ -13,7 +13,7 @@ int main(int argc, char **argv)
   ros::init(argc, argv, "filter_raw_cloud_node");
   ros::NodeHandle nh;
   ros::NodeHandle np("~");
-  ROS_INFO("Initialyzing raw point cloud filter node ...");
+  ROS_INFO("Initialyzing point cloud to laser scan convertion node ...");
 
   // Reading parameters
   bool apply_filter;

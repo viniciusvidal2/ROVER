@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
     tf2_ros
     pcl_conversions
     geometry_msgs
+    livox_ros_driver2
 )
 
 catkin_package(
@@ -26,3 +27,7 @@ include_directories(
 add_executable(convert_ptc_laserscan_node src/convert_ptc_laserscan_node.cpp src/cloud_scan_converter.cpp)
 target_link_libraries(convert_ptc_laserscan_node ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 add_dependencies(convert_ptc_laserscan_node ${catkin_EXPORTED_TARGETS})
+
+add_executable(preprocess_lidar_scan_node src/preprocess_lidar_scan_node.cpp src/scan_preprocessor.cpp)
+target_link_libraries(preprocess_lidar_scan_node ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+add_dependencies(preprocess_lidar_scan_node ${catkin_EXPORTED_TARGETS})
