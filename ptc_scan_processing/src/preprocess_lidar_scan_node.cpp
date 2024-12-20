@@ -16,19 +16,19 @@ int main(int argc, char **argv)
 
   // Reading parameters
   float rover_lengh, rover_width, livox_height_from_floor;
-  np.param("/raw_cloud_filter/rover_lengh", rover_lengh, -1.0f);
-  np.param("/raw_cloud_filter/rover_width", rover_width, 1.0f);
-  np.param("/raw_cloud_filter/livox_height_from_floor", livox_height_from_floor, -1.0f);
+  np.param("/vehicle_region_box/lengh", rover_lengh, 0.6f);
+  np.param("/vehicle_region_box/width", rover_width, 0.6f);
+  np.param("/vehicle_region_box/height", livox_height_from_floor, 0.9f);
   float x_lidar_body, y_lidar_body, z_lidar_body, roll_lidar_body, pitch_lidar_body, yaw_lidar_body;
   std::string in_frame, out_frame;
-  np.param("/livox2scan/input_frame", in_frame, static_cast<std::string>("livox_frame"));
-  np.param("/livox2scan/output_frame", out_frame, static_cast<std::string>("body"));
-  np.param("/livox2scan/x", x_lidar_body, 0.0f);
-  np.param("/livox2scan/y", y_lidar_body, 0.0f);
-  np.param("/livox2scan/z", z_lidar_body, 0.0f);
-  np.param("/livox2scan/roll", roll_lidar_body, 0.0f);
-  np.param("/livox2scan/pitch", pitch_lidar_body, 0.0f);
-  np.param("/livox2scan/yaw", yaw_lidar_body, 0.0f);
+  np.param("/lidar_extrinsics/lidar_frame", in_frame, static_cast<std::string>("livox_frame"));
+  np.param("/lidar_extrinsics/vehicle_frame", out_frame, static_cast<std::string>("body"));
+  np.param("/lidar_extrinsics/x_lidar_vehicle", x_lidar_body, 0.0f);
+  np.param("/lidar_extrinsics/y_lidar_vehicle", y_lidar_body, 0.0f);
+  np.param("/lidar_extrinsics/z_lidar_vehicle", z_lidar_body, 0.0f);
+  np.param("/lidar_extrinsics/roll_lidar_vehicle", roll_lidar_body, 0.0f);   // [degrees]
+  np.param("/lidar_extrinsics/pitch_lidar_vehicle", pitch_lidar_body, 0.0f); // [degrees]
+  np.param("/lidar_extrinsics/yaw_lidar_vehicle", yaw_lidar_body, 0.0f);     // [degrees]
 
   // Print parameters
   ROS_INFO("ROVER length: %.2f meters", rover_lengh);

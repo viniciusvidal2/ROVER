@@ -77,7 +77,7 @@ void ScanPreprocessor::scanCallback(const livox_ros_driver2::CustomMsgConstPtr &
         p_out_msg.tag = p.tag;
         p_out_msg.line = p.line;
         p_out_msg.offset_time = p.offset_time;
-        scan_out.points.emplace_back(std::move(p_out_msg));
+        scan_out.points.push_back(p_out_msg);
     }
 
     // Publish the filtered scan
