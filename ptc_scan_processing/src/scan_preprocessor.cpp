@@ -35,7 +35,8 @@ ScanPreprocessor::ScanPreprocessor(ros::NodeHandle &nh, std::unordered_map<std::
 }
 
 // Scan callback
-void ScanPreprocessor::scanCallback(const livox_ros_driver2::CustomMsgConstPtr &scan_msg)
+void ScanPreprocessor::scanCallback(const livox_ros_driver2::CustomMsgConstPtr &scan_msg,
+                                    const sensor_msgs::Imu::ConstPtr &imu_msg)
 {
     // Output scan
     livox_ros_driver2::CustomMsg scan_out;
