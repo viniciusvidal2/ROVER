@@ -11,33 +11,6 @@ MapDataSaver::MapDataSaver(ros::NodeHandle &nh)
     pnh.param("/mapping/min_counter_to_account_for_velocity", min_counter_to_account_for_velocity_, 100);
     pnh.param("/mapping/min_velocity_to_count_as_movement", min_velocity_to_count_as_movement_, 0.1f);
 
-    // Vehicle extrinsics params
-    float vehicle_x_lidar, vehicle_y_lidar, vehicle_z_lidar;
-    float vehicle_roll_lidar, vehicle_pitch_lidar, vehicle_yaw_lidar;
-    pnh.param("/lidar_extrinsics/x_lidar_vehicle", vehicle_x_lidar, 0.0f);
-    pnh.param("/lidar_extrinsics/y_lidar_vehicle", vehicle_y_lidar, 0.0f);
-    pnh.param("/lidar_extrinsics/z_lidar_vehicle", vehicle_z_lidar, 0.0f);
-    pnh.param("/lidar_extrinsics/roll_lidar_vehicle", vehicle_roll_lidar, 0.0f);
-    pnh.param("/lidar_extrinsics/pitch_lidar_vehicle", vehicle_pitch_lidar, 0.0f);
-    pnh.param("/lidar_extrinsics/yaw_lidar_vehicle", vehicle_yaw_lidar, 0.0f);
-    Eigen::Matrix4f vehicle_T_lidar = Eigen::Matrix4f::Identity();
-    Eigen::Matrix3f vehicle_R_lidar;
-    vehicle_R_lidar = Eigen::AngleAxisf(M_PI / 180.0f * vehicle_roll_lidar, Eigen::Vector3f::UnitX()) *
-                      Eigen::AngleAxisf(M_PI / 180.0f * vehicle_pitch_lidar, Eigen::Vector3f::UnitY()) *
-                      Eigen::AngleAxisf(M_PI / 180.0f * vehicle_yaw_lidar, Eigen::Vector3f::UnitZ());
-    vehicle_T_lidar.block<3, 3>(0, 0) = vehicle_R_lidar;
-    vehicle_T_lidar(0, 3) = vehicle_x_lidar;
-    vehicle_T_lidar(1, 3) = vehicle_y_lidar;
-    vehicle_T_lidar(2, 3) = vehicle_z_lidar;
-    lidar_T_vehicle_ = vehicle_T_lidar.inverse();
-
-    // Params to filter out the vehicle in the incoming reading
-    float vehicle_length, vehicle_width, vehicle_height;
-    pnh.param("/vehicle_region_box/length", vehicle_length, 0.6f);
-    pnh.param("/vehicle_region_box/width", vehicle_width, 0.6f);
-    pnh.param("/vehicle_region_box/height", vehicle_height, 1.0f);
-    vehicle_box_size_ = Eigen::Vector3f(vehicle_length, vehicle_width, vehicle_height);
-
     // Create a folder, making sure it does not exist before
     // If it exists, delete it and create it again
     folder_save_path_ = std::string(std::getenv("HOME")) + "/" + folder_save_path_;
@@ -110,25 +83,21 @@ void MapDataSaver::mappingCallback(const sensor_msgs::PointCloud2::ConstPtr &poi
     Eigen::Vector3f odom_t_lidar(odom_msg->pose.pose.position.x, odom_msg->pose.pose.position.y, odom_msg->pose.pose.position.z);
     odom_T_lidar.block<3, 3>(0, 0) = odom_q_lidar.toRotationMatrix();
     odom_T_lidar.block<3, 1>(0, 3) = odom_t_lidar;
-    // Apply the extrinsics to the sensor frame
-    Eigen::Matrix4f odom_T_vehicle = Eigen::Matrix4f::Identity();
-    odom_T_vehicle = lidar_T_vehicle_ * odom_T_lidar;
 
     // Transform and add the point cloud to the map
     pcl::PointCloud<PointT>::Ptr cloud = pcl::PointCloud<PointT>::Ptr(new pcl::PointCloud<PointT>);
     pcl::fromROSMsg(*pointcloud_msg, *cloud);
-    pcl::transformPointCloud(*cloud, *cloud, odom_T_vehicle);
-    filterVehicleBox(*cloud);
+    pcl::transformPointCloud(*cloud, *cloud, odom_T_lidar);
     *cloud_map_frame_ += *cloud;
     ++cloud_counter_;
 
     // Calculate velocity
-    const Eigen::Vector3f current_position(odom_T_vehicle.block<3, 1>(0, 3));
+    const Eigen::Vector3f current_position(odom_T_lidar.block<3, 1>(0, 3));
     const Eigen::Vector3f previous_position(last_odom_.block<3, 1>(0, 3));
     current_odom_time_ = odom_msg->header.stamp;
     const float dt = (current_odom_time_ - last_odom_time_).toSec();
     const float velocity = (current_position - previous_position).norm() / dt;
-    last_odom_ = odom_T_vehicle;
+    last_odom_ = odom_T_lidar;
     last_odom_time_ = current_odom_time_;
 
     // Do not save if conditions are not met
@@ -168,23 +137,6 @@ void MapDataSaver::mappingCallback(const sensor_msgs::PointCloud2::ConstPtr &poi
                        << gps_msg->altitude << " "
                        << current_compass_yaw_ << std::endl;
     gps_imu_poses_file.close();
-}
-
-void MapDataSaver::filterVehicleBox(pcl::PointCloud<PointT> &cloud)
-{
-    // Temp cloud to store points outside of vehicle box
-    pcl::PointCloud<PointT>::Ptr cloud_filtered(new pcl::PointCloud<PointT>);
-    for (const auto &point : cloud.points)
-    {
-        if (point.x < -vehicle_box_size_.x() / 2.0 || point.x > vehicle_box_size_.x() / 2.0 ||
-            point.y < -vehicle_box_size_.y() / 2.0 || point.y > vehicle_box_size_.y() / 2.0 ||
-            point.z > vehicle_box_size_.z())
-        {
-            cloud_filtered->push_back(point);
-        }
-    }
-    // Update the input cloud
-    cloud = *cloud_filtered;
 }
 
 void MapDataSaver::onShutdown()

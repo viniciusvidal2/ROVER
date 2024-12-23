@@ -55,10 +55,6 @@ private:
     /// @param msg The compass message
     void compassCallback(const std_msgs::Float64::ConstPtr &msg);
 
-    /// @brief Filter the point cloud to remove the vehicle
-    /// @param cloud The point cloud to filter
-    void filterVehicleBox(pcl::PointCloud<PointT> &cloud);
-
     /// @brief The synchronization policy
     using SyncPolicy = message_filters::sync_policies::ApproximateTime<
         sensor_msgs::PointCloud2,
@@ -93,12 +89,6 @@ private:
 
     /// @brief Debug flag
     bool debug_{false};
-
-    /// @brief Vehicle extrinsics, vehicle with respect to lidar
-    Eigen::Matrix4f lidar_T_vehicle_{Eigen::Matrix4f::Identity()};
-
-    /// @brief Vehicle box filter
-    Eigen::Vector3f vehicle_box_size_{}; // [m]
 };
 
 #endif // MAP_DATA_SAVE_NODE_H
