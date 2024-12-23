@@ -19,26 +19,6 @@ LocalizationNode::LocalizationNode(ros::NodeHandle nh)
     pnh.param("/pose_gains_calculation/odom_fixed_gain", odom_fixed_gain_, 0.95f);
     pnh.param("/pose_gains_calculation/gps_fixed_gain", gps_fixed_gain_, 0.05f);
 
-    // Vehicle extrinsics params
-    float vehicle_x_lidar, vehicle_y_lidar, vehicle_z_lidar;
-    float vehicle_roll_lidar, vehicle_pitch_lidar, vehicle_yaw_lidar;
-    pnh.param("/lidar_extrinsics/x_lidar_vehicle", vehicle_x_lidar, 0.0f);
-    pnh.param("/lidar_extrinsics/y_lidar_vehicle", vehicle_y_lidar, 0.0f);
-    pnh.param("/lidar_extrinsics/z_lidar_vehicle", vehicle_z_lidar, 0.0f);
-    pnh.param("/lidar_extrinsics/roll_lidar_vehicle", vehicle_roll_lidar, 0.0f);
-    pnh.param("/lidar_extrinsics/pitch_lidar_vehicle", vehicle_pitch_lidar, 0.0f);
-    pnh.param("/lidar_extrinsics/yaw_lidar_vehicle", vehicle_yaw_lidar, 0.0f);
-    Eigen::Matrix4f vehicle_T_lidar = Eigen::Matrix4f::Identity();
-    Eigen::Matrix3f vehicle_R_lidar;
-    vehicle_R_lidar = Eigen::AngleAxisf(M_PI / 180.0f * vehicle_roll_lidar, Eigen::Vector3f::UnitX()) *
-                      Eigen::AngleAxisf(M_PI / 180.0f * vehicle_pitch_lidar, Eigen::Vector3f::UnitY()) *
-                      Eigen::AngleAxisf(M_PI / 180.0f * vehicle_yaw_lidar, Eigen::Vector3f::UnitZ());
-    vehicle_T_lidar.block<3, 3>(0, 0) = vehicle_R_lidar;
-    vehicle_T_lidar(0, 3) = vehicle_x_lidar;
-    vehicle_T_lidar(1, 3) = vehicle_y_lidar;
-    vehicle_T_lidar(2, 3) = vehicle_z_lidar;
-    lidar_T_vehicle_ = vehicle_T_lidar.inverse();
-
     // Init the map point cloud and transformation with the frames manager
     global_map_frames_manager_ = std::make_shared<GlobalMapFramesManager>(std::string(std::getenv("HOME")) + "/" + relative_folder_path_,
                                                                           map_name_,
@@ -63,10 +43,10 @@ LocalizationNode::LocalizationNode(ros::NodeHandle nh)
     icp_->setDebugMode(debug_);
 
     // Reference transforms
-    map_T_sensor_ = lidar_T_vehicle_ * Eigen::Matrix4f::Identity();
-    odom_T_sensor_previous_ = lidar_T_vehicle_ * Eigen::Matrix4f::Identity();
-    map_T_ref_ = lidar_T_vehicle_ * Eigen::Matrix4f::Identity();
-    map_T_odom_ = lidar_T_vehicle_ * Eigen::Matrix4f::Identity();
+    map_T_sensor_ = Eigen::Matrix4f::Identity();
+    odom_T_sensor_previous_ = Eigen::Matrix4f::Identity();
+    map_T_ref_ = Eigen::Matrix4f::Identity();
+    map_T_odom_ = Eigen::Matrix4f::Identity();
 
     // Init the cropped map in the ref frame
     ref_cropped_map_cloud_ = pcl::PointCloud<PointT>::Ptr(new pcl::PointCloud<PointT>());
@@ -125,8 +105,6 @@ inline void LocalizationNode::computePosePredictionFromOdometry(const nav_msgs::
     odom_T_sensor_current.setIdentity();
     odom_T_sensor_current.block<3, 3>(0, 0) = odom_q_sensor_current.toRotationMatrix();
     odom_T_sensor_current.block<3, 1>(0, 3) = odom_t_sensor_current;
-    // Apply vehicle extrinsics
-    odom_T_sensor_current = lidar_T_vehicle_ * odom_T_sensor_current;
 
     // Calculate the previous_T_current transformation matrix
     const Eigen::Matrix4f previous_T_current(odom_T_sensor_previous_.inverse() * odom_T_sensor_current);
@@ -150,7 +128,7 @@ const Eigen::Matrix4f LocalizationNode::computeGpsCoarsePoseInMapFrame(const sen
     global_T_sensor.block<3, 3>(0, 0) = global_R_sensor;
     global_T_sensor.block<3, 1>(0, 3) = Eigen::Vector3f(utm_easting, utm_northing, table_altitude);
 
-    return lidar_T_vehicle_ * map_T_global_.cast<float>() * global_T_sensor;
+    return map_T_global_.cast<float>() * global_T_sensor;
 }
 
 inline nav_msgs::Odometry LocalizationNode::buildNavOdomMsg(const Eigen::Matrix4f &T,
@@ -236,8 +214,6 @@ void LocalizationNode::initializePosesWithFirstReading(const sensor_msgs::NavSat
     odom_T_sensor_previous_.setIdentity();
     odom_T_sensor_previous_.block<3, 3>(0, 0) = odom_q_sensor_previous.toRotationMatrix();
     odom_T_sensor_previous_.block<3, 1>(0, 3) = odom_t_sensor_previous;
-    // Apply vehicle extrinsics
-    odom_T_sensor_previous_ = lidar_T_vehicle_ * odom_T_sensor_previous_;
 }
 
 bool LocalizationNode::performCoarseAlignment(const pcl::PointCloud<PointT>::Ptr &scan_cloud,
@@ -305,22 +281,6 @@ bool LocalizationNode::performCoarseAlignment(const pcl::PointCloud<PointT>::Ptr
     return false;
 }
 
-void LocalizationNode::filterVehicleBox(pcl::PointCloud<PointT> &cloud)
-{
-    // Temp cloud to store points outside of vehicle box
-    pcl::PointCloud<PointT>::Ptr cloud_filtered(new pcl::PointCloud<PointT>);
-    for (const auto &point : cloud.points)
-    {
-        if (point.x < -vehicle_box_size_.x() / 2.0 || point.x > vehicle_box_size_.x() / 2.0 ||
-            point.y < -vehicle_box_size_.y() / 2.0 || point.y > vehicle_box_size_.y() / 2.0 ||
-            point.z > vehicle_box_size_.z())
-        {
-            cloud_filtered->push_back(point);
-        }
-    }
-    // Update the input cloud
-    cloud = *cloud_filtered;
-}
 
 void LocalizationNode::localizationCallback(const sensor_msgs::PointCloud2::ConstPtr &pointcloud_msg,
                                             const sensor_msgs::NavSatFix::ConstPtr &gps_msg,
@@ -353,8 +313,6 @@ void LocalizationNode::localizationCallback(const sensor_msgs::PointCloud2::Cons
     pcl::PointCloud<PointT>::Ptr scan_cloud = pcl::PointCloud<PointT>::Ptr(new pcl::PointCloud<PointT>);
     pcl::fromROSMsg(*pointcloud_msg, *scan_cloud);
     applyUniformSubsample(scan_cloud, 2);
-    // Apply filter to remove vehicle points
-    filterVehicleBox(*scan_cloud);
 
     // Crop the input scan around the sensor frame origin
     pcl::PointCloud<PointT>::Ptr cropped_scan_cloud = pcl::PointCloud<PointT>::Ptr(new pcl::PointCloud<PointT>);
