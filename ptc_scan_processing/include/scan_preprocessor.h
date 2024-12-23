@@ -29,17 +29,23 @@ public:
 
     ~ScanPreprocessor() = default;
 
-    // Cloud callback
+    // Scan callback
     void scanCallback(const livox_ros_driver2::CustomMsgConstPtr &scan_msg);
+    
+    // Imu callback
+    void imuCallback(const sensor_msgs::ImuConstPtr &msg);
 
 private:
-    // Filtered scan publisher
-    ros::Publisher out_scan_pub_;
+    // Filtered scan and imu publishers
+    ros::Publisher out_scan_pub_, out_imu_pub_;
     // Raw scan subscriber
     ros::Subscriber scan_sub_;
+    // Raw IMU subscriber
+    ros::Subscriber imu_sub_;
     // Frames
     std::string in_frame_, out_frame_;
     Eigen::Matrix4f lidar_T_body_;
+    Eigen::Quaternionf lidar_q_body_;
     // Filter parameters
     Eigen::Vector3f negative_range_, positive_range_;
 };

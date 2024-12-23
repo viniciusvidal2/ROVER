@@ -3,8 +3,9 @@
 ScanPreprocessor::ScanPreprocessor(ros::NodeHandle &nh, std::unordered_map<std::string, float> &params,
                                    std::unordered_map<std::string, std::string> &frames)
 {
-    // Advertise the preprocessed scan
+    // Advertise the preprocessed scan and IMU
     out_scan_pub_ = nh.advertise<livox_ros_driver2::CustomMsg>("/livox/lidar_filtered", 10);
+    out_imu_pub_ = nh.advertise<sensor_msgs::Imu>("/livox/imu_filtered", 10);
 
     // Input and output frames variables
     in_frame_ = frames["in_frame"];
@@ -21,6 +22,7 @@ ScanPreprocessor::ScanPreprocessor(ros::NodeHandle &nh, std::unordered_map<std::
         lidar_R_body(1, 0), lidar_R_body(1, 1), lidar_R_body(1, 2), y_lidar_body_,
         lidar_R_body(2, 0), lidar_R_body(2, 1), lidar_R_body(2, 2), z_lidar_body_,
         0.0, 0.0, 0.0, 1.0;
+    lidar_q_body_ = Eigen::Quaternionf(lidar_R_body);
 
     // Set the filter parameters
     const float rover_lengh = params["rover_lengh"];
@@ -31,8 +33,9 @@ ScanPreprocessor::ScanPreprocessor(ros::NodeHandle &nh, std::unordered_map<std::
     negative_range_ << -rover_lengh / 2.0f, -rover_width / 2.0f, -livox_height_from_floor;
     positive_range_ << rover_lengh / 2.0f, rover_width / 2.0f, livox_height_from_floor;
 
-    // Initialize subscriber
-    scan_sub_ = nh.subscribe("livox/lidar", 1000, &ScanPreprocessor::scanCallback, this);
+    // Initialize subscribers
+    scan_sub_ = nh.subscribe("/livox/lidar", 1000, &ScanPreprocessor::scanCallback, this);
+    imu_sub_ = nh.subscribe("/livox/imu", 1000, &ScanPreprocessor::imuCallback, this);
 }
 
 // Scan callback
@@ -79,4 +82,28 @@ void ScanPreprocessor::scanCallback(const livox_ros_driver2::CustomMsgConstPtr &
 
     // Publish the filtered scan
     out_scan_pub_.publish(scan_out);
+}
+
+void ScanPreprocessor::imuCallback(const sensor_msgs::ImuConstPtr &msg)
+{
+    sensor_msgs::Imu out_imu = *msg;
+    // Apply vehicle extrinsics to IMU original orientation, velocity and acceleration
+    const Eigen::Quaternionf q_lidar(msg->orientation.w, msg->orientation.x, msg->orientation.y, msg->orientation.z);
+    const Eigen::Quaternionf q_body = lidar_q_body_ * q_lidar;
+    const Eigen::Vector3f angular_velocity_in(msg->angular_velocity.x, msg->angular_velocity.y, msg->angular_velocity.z);
+    const Eigen::Vector3f angular_velocity_out(lidar_q_body_ * angular_velocity_in);
+    const Eigen::Vector3f linear_acceleration_in(msg->linear_acceleration.x, msg->linear_acceleration.y, msg->linear_acceleration.z);
+    const Eigen::Vector3f linear_acceleration_out(lidar_q_body_ * linear_acceleration_in);
+    out_imu.orientation.w = q_body.w();
+    out_imu.orientation.x = q_body.x();
+    out_imu.orientation.y = q_body.y();
+    out_imu.orientation.z = q_body.z();
+    out_imu.angular_velocity.x = angular_velocity_out.x();
+    out_imu.angular_velocity.y = angular_velocity_out.y();
+    out_imu.angular_velocity.z = angular_velocity_out.z();
+    out_imu.linear_acceleration.x = linear_acceleration_out.x();
+    out_imu.linear_acceleration.y = linear_acceleration_out.y();
+    out_imu.linear_acceleration.z = linear_acceleration_out.z();
+    // Publish output
+    out_imu_pub_.publish(out_imu);
 }
