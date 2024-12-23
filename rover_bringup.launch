@@ -38,6 +38,9 @@
             <arg name="rviz_enable" value="false"/>
         </include>
 
+        <!-- Livox data preprocessor -->
+        <include file="$(ptc_scan_preprocessing)/launch/preprocess_lidar.launch"/>
+
         <!-- USB camera for herelink transmission -->
         <include file="$(find camera_transmitter)/launch/camera_transmitter.launch"/>
 
@@ -56,7 +59,7 @@
         <arg name="rviz" value="false"/>
     </include> -->
 
-    <!-- Livox filter -->
+    <!-- Convert from PointCloud to LaserScan for obstacle avoidance -->
     <rosparam command="load" file="$(find ptc_scan_processing)/config/params.yaml"/>
     <node name="convert_ptc_laserscan_node" pkg="ptc_scan_processing" type="convert_ptc_laserscan_node" output="screen"/>
 

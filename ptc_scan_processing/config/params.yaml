@@ -21,6 +21,6 @@ livox2scan:
     x: 0.0
     y: 0.0
     z: 0.0
-    roll: 180.0 # degrees
+    roll: 0.0 # degrees
     pitch: 0.0 # degrees
     yaw: 0.0 # degrees
