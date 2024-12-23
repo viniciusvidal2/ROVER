@@ -30,7 +30,7 @@ public:
     ~ScanPreprocessor() = default;
 
     // Cloud callback
-    void scanCallback(const livox_ros_driver2::CustomMsgConstPtr &scan_msg, const sensor_msgs::Imu::ConstPtr &imu_msg);
+    void scanCallback(const livox_ros_driver2::CustomMsgConstPtr &scan_msg);
 
 private:
     // Filtered scan publisher
@@ -42,15 +42,5 @@ private:
     Eigen::Matrix4f lidar_T_body_;
     // Filter parameters
     Eigen::Vector3f negative_range_, positive_range_;
-
-    /// @brief The synchronization policy
-    using SyncPolicy = message_filters::sync_policies::ApproximateTime<
-        livox_ros_driver2::CustomMsg,
-        sensor_msgs::Imu>;
-
-    /// @brief Subscribers and synchronizer
-    message_filters::Subscriber<livox_ros_driver2::CustomMsg> scan_sub_;
-    message_filters::Subscriber<sensor_msgs::Imu> imu_sub_;
-    std::shared_ptr<message_filters::Synchronizer<SyncPolicy>> sync_;
 };
 #endif // SCANPREPROCESSOR_h

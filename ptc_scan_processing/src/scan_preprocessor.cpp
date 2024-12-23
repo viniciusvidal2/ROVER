@@ -3,8 +3,6 @@
 ScanPreprocessor::ScanPreprocessor(ros::NodeHandle &nh, std::unordered_map<std::string, float> &params,
                                    std::unordered_map<std::string, std::string> &frames)
 {
-    // Subscribe to the input scan
-    scan_sub_ = nh.subscribe<livox_ros_driver2::CustomMsg>("/livox/lidar", 10, &ScanPreprocessor::scanCallback, this);
     // Advertise the preprocessed scan
     out_scan_pub_ = nh.advertise<livox_ros_driver2::CustomMsg>("/livox/lidar_filtered", 10);
 
@@ -32,18 +30,19 @@ ScanPreprocessor::ScanPreprocessor(ros::NodeHandle &nh, std::unordered_map<std::
     // X forward, Y left, Z up
     negative_range_ << -rover_lengh / 2.0f, -rover_width / 2.0f, -livox_height_from_floor;
     positive_range_ << rover_lengh / 2.0f, rover_width / 2.0f, livox_height_from_floor;
+
+    // Initialize subscriber
+    scan_sub_ = nh.subscribe("livox/lidar", 1000, &ScanPreprocessor::scanCallback, this);
 }
 
 // Scan callback
-void ScanPreprocessor::scanCallback(const livox_ros_driver2::CustomMsgConstPtr &scan_msg,
-                                    const sensor_msgs::Imu::ConstPtr &imu_msg)
+void ScanPreprocessor::scanCallback(const livox_ros_driver2::CustomMsgConstPtr &scan_msg)
 {
     // Output scan
     livox_ros_driver2::CustomMsg scan_out;
-    scan_out.header.stamp = scan_msg->header.stamp;
-    scan_out.header.frame_id = scan_msg->header.frame_id;
+    scan_out.header = scan_msg->header;
     scan_out.timebase = scan_msg->timebase;
-    scan_out.point_num = scan_msg->point_num;
+    scan_out.lidar_id = scan_msg->lidar_id;
     scan_out.rsvd = scan_msg->rsvd;
 
     // If empty scan, just publish the incoming message
@@ -70,16 +69,13 @@ void ScanPreprocessor::scanCallback(const livox_ros_driver2::CustomMsgConstPtr &
         }
 
         // Add the point to the output scan
-        livox_ros_driver2::CustomPoint p_out_msg;
+        livox_ros_driver2::CustomPoint p_out_msg = p;
         p_out_msg.x = p_out.x();
         p_out_msg.y = p_out.y();
         p_out_msg.z = p_out.z();
-        p_out_msg.reflectivity = p.reflectivity;
-        p_out_msg.tag = p.tag;
-        p_out_msg.line = p.line;
-        p_out_msg.offset_time = p.offset_time;
         scan_out.points.push_back(p_out_msg);
     }
+    scan_out.point_num = static_cast<std::uint32_t>(scan_out.points.size());
 
     // Publish the filtered scan
     out_scan_pub_.publish(scan_out);
