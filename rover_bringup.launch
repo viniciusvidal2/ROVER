@@ -60,8 +60,7 @@
     </include> -->
 
     <!-- Convert from PointCloud to LaserScan for obstacle avoidance -->
-    <rosparam command="load" file="$(find ptc_scan_processing)/config/params.yaml"/>
-    <node name="convert_ptc_laserscan_node" pkg="ptc_scan_processing" type="convert_ptc_laserscan_node" output="screen"/>
+    <include file="$(ptc_scan_preprocessing)/launch/ptc_laserscan_convertion.launch"/>
 
     <!-- Obstacle avoidance algorithm -->
     <!-- <node pkg="obstacle_avoidance" type="obstacle_avoidance_sc_node.py" name="obstacle_avoidance_sc_node">
