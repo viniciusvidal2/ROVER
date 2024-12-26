@@ -1,6 +1,6 @@
 ptc_scan_filter:
     max_xy_range: 15.0 # meters
-    min_intensity: 0
+    min_intensity: -1
     frontal_fov: 270.0 # degrees, half to each side, centre looking forward
 
 ptc_scan_converter:

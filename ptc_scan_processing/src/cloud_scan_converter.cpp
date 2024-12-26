@@ -50,7 +50,7 @@ void CloudScanConverter::cloudCallback(const sensor_msgs::PointCloud2ConstPtr &c
         }
         // Calculate and filter by range
         const float p_range = pp.head<2>().norm();
-        if (p_range < max_xy_range_)
+        if (p_range > max_xy_range_)
         {
             continue;
         }
