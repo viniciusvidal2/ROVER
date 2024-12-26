@@ -1,5 +1,6 @@
 <launch>
   <arg name="map_name" default="map_1"/>
+  <arg name="rviz" default="false"/>
 
   <!-- FAST LIO for lidar odometry -->
   <include file="$(find fast_lio)/launch/mapping_mid360.launch">
@@ -16,4 +17,7 @@
 
   <!-- Launch the obstacle point cloud generator node -->
   <node pkg="localization" type="obstacle_generator_node" name="obstacle_generator_node" output="screen"/>
+  
+  <!-- Launch RViz with config -->
+  <node name="rviz_localization" pkg="rviz" type="rviz" args="-d $(find localization)/resource/visualizer.rviz" output="screen" if="$(arg rviz)"/>
 </launch>

@@ -96,6 +96,12 @@ void ObstaclePointCloudGeneratorNode::scanCallback(const sensor_msgs::PointCloud
         if (debug_)
         {
             ROS_WARN("No obstacles found in the current scan.");
+            // Publish only the map point cloud
+            sensor_msgs::PointCloud2 map_cloud_msg;
+            pcl::toROSMsg(*map_cloud_, map_cloud_msg);
+            map_cloud_msg.header.frame_id = "map";
+            map_cloud_msg.header.stamp = scan_msg->header.stamp;
+            map_point_cloud_pub_.publish(map_cloud_msg);
         }
         return;
     }
@@ -104,7 +110,7 @@ void ObstaclePointCloudGeneratorNode::scanCallback(const sensor_msgs::PointCloud
     // Publish the obstacle point cloud
     sensor_msgs::PointCloud2 obstacle_cloud_msg;
     pcl::toROSMsg(*obstacle_cloud_lidar_frame, obstacle_cloud_msg);
-    obstacle_cloud_msg.header.frame_id = "sensor";
+    obstacle_cloud_msg.header.frame_id = "body";
     obstacle_cloud_msg.header.stamp = scan_msg->header.stamp;
     obstacles_lidar_frame_point_cloud_pub_.publish(obstacle_cloud_msg);
 
