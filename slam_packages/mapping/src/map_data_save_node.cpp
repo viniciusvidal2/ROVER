@@ -33,7 +33,7 @@ MapDataSaver::MapDataSaver(ros::NodeHandle &nh)
     FileManipulation::createTextFile(gps_imu_poses_file_path_, "lat lon alt y\n");
 
     // Initialize the point cloud to save the map
-    cloud_map_frame_ = pcl::PointCloud<PointT>::Ptr(new pcl::PointCloud<PointT>);
+    cloud_map_frame_ = pcl::PointCloud<PointOut>::Ptr(new pcl::PointCloud<PointOut>);
 
     // Compass subscriber will be used to get the yaw angle
     compass_subscription_ = nh.subscribe<std_msgs::Float64>(
@@ -84,11 +84,24 @@ void MapDataSaver::mappingCallback(const sensor_msgs::PointCloud2::ConstPtr &poi
     odom_T_lidar.block<3, 3>(0, 0) = odom_q_lidar.toRotationMatrix();
     odom_T_lidar.block<3, 1>(0, 3) = odom_t_lidar;
 
+    // Get the incoming point cloud with intensity information and convert to RGB format in R channel
+    pcl::PointCloud<PointIn>::Ptr i_cloud = pcl::PointCloud<PointIn>::Ptr(new pcl::PointCloud<PointIn>);
+    pcl::fromROSMsg(*pointcloud_msg, *i_cloud);
+    pcl::PointCloud<PointOut>::Ptr rgb_cloud = pcl::PointCloud<PointOut>::Ptr(new pcl::PointCloud<PointOut>);
+    rgb_cloud->points.reserve(i_cloud->size());
+    for (const auto& pi : i_cloud->points)
+    {
+        PointOut prgb;
+        prgb.x = pi.x;
+        prgb.y = pi.y;
+        prgb.z = pi.z;
+        prgb.r = static_cast<std::uint8_t>(pi.intensity);
+        rgb_cloud->points.emplace_back(prgb);
+    }
+
     // Transform and add the point cloud to the map
-    pcl::PointCloud<PointT>::Ptr cloud = pcl::PointCloud<PointT>::Ptr(new pcl::PointCloud<PointT>);
-    pcl::fromROSMsg(*pointcloud_msg, *cloud);
-    pcl::transformPointCloud(*cloud, *cloud, odom_T_lidar);
-    *cloud_map_frame_ += *cloud;
+    pcl::transformPointCloud(*rgb_cloud, *rgb_cloud, odom_T_lidar);
+    *cloud_map_frame_ += *rgb_cloud;
     ++cloud_counter_;
 
     // Calculate velocity

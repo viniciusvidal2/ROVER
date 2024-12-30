@@ -31,7 +31,8 @@
 
 #include "mapping/file_manipulation.hpp"
 
-using PointT = pcl::PointXYZ;
+using PointIn = pcl::PointXYZI;
+using PointOut = pcl::PointXYZRGB;
 
 class MapDataSaver
 {
@@ -78,7 +79,7 @@ private:
     int cloud_save_interval_{10};
     int min_counter_to_account_for_velocity_{100};
     float min_velocity_to_count_as_movement_{0.1f}; // [m/s]
-    pcl::PointCloud<PointT>::Ptr cloud_map_frame_;
+    pcl::PointCloud<PointOut>::Ptr cloud_map_frame_;
 
     /// @brief previous odometry message data
     Eigen::Matrix4f last_odom_{Eigen::Matrix4f::Identity()};
