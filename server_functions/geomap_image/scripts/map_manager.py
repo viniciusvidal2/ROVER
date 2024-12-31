@@ -42,38 +42,67 @@ class MapManager:
                                 [0.0000,       0.0000,       0.0000,       1.0000]])
         world_T_map = np.linalg.inv(map_T_world)
 
-        # Create the image to project the points and run the projection
-        # Get the global coordinates of each projected pixel as well
+        # Output variables
         map_bev = np.zeros(shape=tuple(self.image_size), dtype=np.uint8)
         map_z = np.zeros(shape=tuple(self.image_size), dtype=float)
-        keys = [f"{v}_{u}" for u in range(self.image_size[1]) for v in range(self.image_size[0])]
-        default_coords = {"lat": 0, "lon": 0, "alt": 0}
+        keys = [f"{v}_{u}" for u in range(
+            self.image_size[1]) for v in range(self.image_size[0])]
+        default_coords = {"utm_e": 0, "utm_n": 0, "alt": 0}
         map_coords = dict.fromkeys(keys, default_coords)
 
-        for p_map, p_color in zip(np.asarray(ptc_map_frame.points), np.asarray(ptc_map_frame.colors)):
+        # Transform all the points to world frame
+        ptc_map_frame_points = np.asarray(ptc_map_frame.points)
+        points_map_frame_h = np.hstack(
+            [ptc_map_frame_points, np.ones((ptc_map_frame_points.shape[0], 1))])
+        points_world_frame_h = (world_T_map @ points_map_frame_h.T).T
+
+        ptc_point_colors = np.asarray(ptc_map_frame.colors)
+        for p_map, p_color, p_world in zip(ptc_map_frame_points, ptc_point_colors, points_world_frame_h):
             # Operation to get the image coordinates based on the xy values in the map
             [u, v] = np.floor((p_map[:2] - min_xy_offset)
                               * resolution).astype(int) - 1
 
             # Only project if the point ir higher than the previous one, or no projection is in the pixel yet
-            if map_z[v, u] == 0 or p_map[2] > map_z[u, v]:
+            if map_z[v, u] == 0 or p_map[2] > map_z[v, u]:
                 map_bev[v, u] = np.uint8(p_color[0] * 255)
+                map_z[v, u] = p_map[2]
 
-                # Transform to UTM and then latlon
-                p_map_h = np.append(p_map, 1)
-                p_world_utm = world_T_map @ p_map_h
-                utm_e, utm_n, alt = p_world_utm[0], p_world_utm[1], p_world_utm[2]
-                lat, lon = utm.to_latlon(
-                    easting=utm_e, northing=utm_n, zone_number=23, zone_letter='l')
                 # Save to map dictionary
+                utm_e, utm_n, alt = p_world[0], p_world[1], p_world[2]
                 key = f"{v}_{u}"
-                coords = {"lat": lat, "lon": lon, "alt": alt}
+                coords = {"utm_e": utm_e, "utm_n": utm_n, "alt": alt}
                 map_coords[key] = coords
 
+        # The coordinates that still contain zeros in Z image should be filled as much as possible
+        map_z = self.smoothFillFloatImage(
+            image=map_z, kernel_size=7, iterations=5)
+        # If we ever find a missing height value, use the last valid one as an approximation
+        last_valid_z = 0
+        # Go looking for missing utm data, and fill in with an approximation based on the pixel value
+        for v in range(map_bev.shape[0]):
+            for u in range(map_bev.shape[1]):
+                if map_z[v, u] != 0:
+                    last_valid_z = map_z[v, u]
+
+                key = f"{v}_{u}"
+                if map_coords[key]["utm_e"] == 0:
+                    # Find the map coordinates using the pixel value and resolution,
+                    # then use Z and transform to get the point in world frame
+                    xy_map_frame = min_xy_offset + \
+                        np.array([u, v]) * resolution
+                    z_map_frame = map_z[v, u] if map_z[v,
+                                                       u] != 0 else last_valid_z
+                    xyz_map_frame_h = np.hstack(
+                        [xy_map_frame, np.array([z_map_frame, 1])])
+                    p_world = world_T_map @ xyz_map_frame_h
+                    # Save to map dictionary
+                    utm_e, utm_n, alt = p_world[0], p_world[1], p_world[2]
+                    map_coords[key] = {"utm_e": utm_e,
+                                       "utm_n": utm_n, "alt": alt}
+
         # Apply morphological operations and light enhancement for the BEV map
-        kernel = np.ones((3, 3), np.uint8)
-        map_bev = cv2.dilate(map_bev, kernel, iterations=1)
-        map_bev = cv2.equalizeHist(map_bev)
+        map_bev = self.enhanceImageQuality(
+            image=map_bev, kernel_size=3, iterations=1)
 
         # Get the output JSON together
         return map_bev, map_coords
