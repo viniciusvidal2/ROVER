@@ -3,8 +3,7 @@ import numpy as np
 import open3d as o3d
 import os
 import cv2
-import utm
-import json
+import msgpack
 
 
 class MapManager:
@@ -95,6 +94,16 @@ class MapManager:
 
         # Save the JSON file with coordinates
         if len(map_coords) > 0:
-            coords_path = os.path.join(self.map_folder, rover_name + ".json")
-            with open(coords_path, "w") as json_file:
-                json.dump(map_coords, json_file, indent=4)
+            coords_path = os.path.join(
+                self.map_folder, rover_name + ".msgpack")
+            with open(coords_path, "wb") as msgpack_file:
+                msgpack.dump(map_coords, msgpack_file)
+
+    def smoothFillFloatImage(self, image: np.ndarray, kernel_size: int, iterations: int) -> np.ndarray:
+        kernel = np.ones((kernel_size, kernel_size), np.uint8)
+        return cv2.dilate(image, kernel, iterations=iterations)
+
+    def enhanceImageQuality(self, image: np.ndarray, kernel_size: int, iterations: int) -> np.ndarray:
+        smoothed_image = self.smoothFillFloatImage(
+            image=image, kernel_size=kernel_size, iterations=iterations)
+        return cv2.equalizeHist(smoothed_image)
