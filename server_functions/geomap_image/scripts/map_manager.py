@@ -8,11 +8,23 @@ import msgpack
 
 class MapManager:
     def __init__(self, rover_code: int = 0, folder: str = "", imsize: list = [1080, 1920]) -> None:
+        """Constructor
+
+        Args:
+            rover_code (int, optional): The rover id. Defaults to 0.
+            folder (str, optional): The map folder from the rover. Defaults to "".
+            imsize (list, optional): The output image map size [rows, cols]. Defaults to [1080, 1920].
+        """
         self.rover_code = rover_code
         self.map_folder = folder
         self.image_size = imsize
 
     def generateMapPtc(self) -> o3d.geometry.PointCloud:
+        """Reads all the point cloud tiles and returns the entire map cloud
+
+        Returns:
+            o3d.geometry.PointCloud: the map cloud
+        """
         map_point_cloud = o3d.geometry.PointCloud()
         for filename in os.listdir(self.map_folder):
             if filename.endswith(".pcd") and filename.startswith("cloud"):
@@ -21,6 +33,14 @@ class MapManager:
         return map_point_cloud
 
     def generateMapBev(self, ptc_map_frame: o3d.geometry.PointCloud) -> Tuple[np.ndarray, Dict]:
+        """Generates the map birds eye view image, along with georeferenced data
+
+        Args:
+            ptc_map_frame (o3d.geometry.PointCloud): The map point cloud
+
+        Returns:
+            Tuple[np.ndarray, Dict]: bev image, dict with georef data
+        """
         if (len(np.asarray(ptc_map_frame.points)) == 0):
             return np.ndarray()
 
@@ -74,7 +94,7 @@ class MapManager:
                 map_coords[key] = coords
 
         # The coordinates that still contain zeros in Z image should be filled as much as possible
-        map_z = self.smoothFillFloatImage(
+        map_z = self.smoothFillImage(
             image=map_z, kernel_size=7, iterations=5)
         # If we ever find a missing height value, use the last valid one as an approximation
         last_valid_z = 0
@@ -108,6 +128,13 @@ class MapManager:
         return map_bev, map_coords
 
     def saveMap(self, map_bev: np.ndarray, map_ptc: o3d.geometry.PointCloud, map_coords: dict) -> None:
+        """Saves the map data
+
+        Args:
+            map_bev (np.ndarray): map birds eye view image, saved as png
+            map_ptc (o3d.geometry.PointCloud): map point cloud, saved as pcd
+            map_coords (dict): map georef data, saved as msgpack
+        """
         # Rover name from the code
         rover_name = "rover_" + str(self.rover_code)
 
@@ -128,11 +155,31 @@ class MapManager:
             with open(coords_path, "wb") as msgpack_file:
                 msgpack.dump(map_coords, msgpack_file)
 
-    def smoothFillFloatImage(self, image: np.ndarray, kernel_size: int, iterations: int) -> np.ndarray:
+    def smoothFillImage(self, image: np.ndarray, kernel_size: int, iterations: int) -> np.ndarray:
+        """Smooth float image to fill in some zeros
+
+        Args:
+            image (np.ndarray): input float data map
+            kernel_size (int): kernel size to run dilation operations
+            iterations (int): number of dilations
+
+        Returns:
+            np.ndarray: the filled float image
+        """
         kernel = np.ones((kernel_size, kernel_size), np.uint8)
         return cv2.dilate(image, kernel, iterations=iterations)
 
     def enhanceImageQuality(self, image: np.ndarray, kernel_size: int, iterations: int) -> np.ndarray:
-        smoothed_image = self.smoothFillFloatImage(
+        """Improve image quality with operations
+
+        Args:
+            image (np.ndarray): input image
+            kernel_size (int): kernel size
+            iterations (int): number of iterations
+
+        Returns:
+            np.ndarray: improved image
+        """
+        smoothed_image = self.smoothFillImage(
             image=image, kernel_size=kernel_size, iterations=iterations)
         return cv2.equalizeHist(smoothed_image)
