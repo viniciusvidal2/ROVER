@@ -250,7 +250,7 @@ Eigen::Matrix4d GlobalMapFramesManager::computeMapTGlobal(const std::vector<Eige
     }
     compass_yaw_avg /= compass_yaw.size();
 
-    // Compute the global_T_map transformation and invert it for map_T_global
+    // Compute the map_T_global transformation using rotation and translation
     Eigen::Matrix3d map_R_global = Eigen::AngleAxisd(-compass_yaw_avg, Eigen::Vector3d::UnitZ()).toRotationMatrix();
     Eigen::Matrix4d map_T_global(Eigen::Matrix4d::Identity());
     map_T_global.block<3, 3>(0, 0) = map_R_global;
