@@ -4,6 +4,7 @@ import open3d as o3d
 import os
 import cv2
 import msgpack
+import utm
 
 
 class MapManager:
@@ -18,6 +19,66 @@ class MapManager:
         self.rover_code = rover_code
         self.map_folder = folder
         self.image_size = imsize
+
+    def computeWorldTMap(self) -> np.ndarray:
+        """Computes the transformation from map frame to world frame using mapped data for 
+        compass yaw and UTM coordinates at the map origin
+
+        Returns:
+            np.ndarray: homogeneous transformation matrix
+        """
+        # Reads the GPS data
+        gps_file = os.path.join(self.map_folder, "gps_imu_poses.txt")
+        gps_list = list()
+        with open(gps_file, "r") as gf:
+            lines = gf.readlines()
+            for i in range(1, len(lines)):
+                lat, lon, alt, yaw = map(float, lines[i].split())
+                gps_list.append((lat, lon, alt, yaw))
+            
+        # Reads the odom data
+        odom_file = os.path.join(self.map_folder, "odometry_positions.txt")
+        odom_list = list()
+        with open(odom_file, "r") as of:
+            lines = of.readlines()
+            for i in range(1, len(lines)):
+                tx, ty, tz = map(float, lines[i].split())
+                odom_list.append((tx, ty, tz))
+
+        # Filters which values are going in the math
+        valid_readings = list()
+        for gps, odom in zip(gps_list, odom_list):
+            if gps[2] < 0:
+                continue
+            if np.linalg.norm(np.array([odom[:-1]])) > 0.10:
+                break
+            valid_readings.append({"gps": gps, "odom": odom})
+        if len(valid_readings) == 0:
+            print("NO VALID READINGS FROM THE MAP, NO VALID TRANSFORMATION TO GEOREF DATA.")
+            return np.eye(4)
+
+        # Get average translation from utm coordinates, average yaw in radians
+        world_t_map = np.zeros(3)  # [m]
+        world_yaw_map = 0  # [RAD]
+        for data in valid_readings:
+            lat, lon, alt, yaw = data["gps"]
+            utm_e, utm_n, _, _ = utm.from_latlon(lat, lon)
+            world_t_map += np.array([utm_e, utm_n, alt])
+            world_yaw_map += yaw
+        world_t_map /= len(valid_readings)
+        world_yaw_map /= len(valid_readings)
+        # Generate the transformation matrix and return
+        cos_yaw = np.cos(world_yaw_map)
+        sin_yaw = np.sin(world_yaw_map)
+        world_R_map = np.array([
+            [cos_yaw, -sin_yaw, 0],
+            [sin_yaw,  cos_yaw, 0],
+            [0,          0,     1]
+        ])
+        world_T_map = np.eye(4)
+        world_T_map[:3, :3] = world_R_map
+        world_T_map[:3, 3] = world_t_map
+        return world_T_map
 
     def generateMapPtc(self) -> o3d.geometry.PointCloud:
         """Reads all the point cloud tiles and returns the entire map cloud
@@ -56,11 +117,7 @@ class MapManager:
         self.image_size = np.ceil(yx_extent * resolution).astype(int)
 
         # Get the transformation from world to map
-        map_T_world = np.array([[-0.5467,      -0.8373,       0.0000, 6721299.1559],
-                                [0.8373,      -0.5467,       0.0000, 3590546.8287],
-                                [0.0000,       0.0000,       1.0000,    -926.5576],
-                                [0.0000,       0.0000,       0.0000,       1.0000]])
-        world_T_map = np.linalg.inv(map_T_world)
+        world_T_map = self.computeWorldTMap()
 
         # Output variables
         map_bev = np.zeros(shape=tuple(self.image_size), dtype=np.uint8)
