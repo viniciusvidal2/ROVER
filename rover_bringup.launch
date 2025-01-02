@@ -67,6 +67,6 @@
         <param name="corridor_width" value="$(arg corridor_width)"/>
         <param name="turn_rate" value="$(arg turn_rate)"/>
     </node> -->
-    <node pkg="DWA_obstacle_avoidance" type="obstacle_avoidance_fuzzy.py" name="obstacle_avoidance_fuzzy"/>
+    <node pkg="dwa_obstacle_avoidance" type="obstacle_avoidance_fuzzy.py" name="obstacle_avoidance_fuzzy"/>
 
 </launch>

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(DWA_obstacle_avoidance)
+project(dwa_obstacle_avoidance)
 
 find_package(catkin REQUIRED COMPONENTS
   rospy
