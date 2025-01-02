@@ -16,7 +16,6 @@ from tf.transformations import euler_from_quaternion
 from nav_msgs.msg import Odometry
 from fuzzy import fuzzyLogicManeuveringSpace, fuzzyLogic
 
-
 class ObstacleAvoidance:
     ############################################################################
     # region CONSTRUCTOR
@@ -148,7 +147,6 @@ class ObstacleAvoidance:
         # Calcula aceleração se houver uma velocidade anterior registrada
         if hasattr(self, 'previous_velocity') and hasattr(self, 'previous_time'):
             self.dt = current_time - self.previous_time
-            # rospy.loginfo(f"dt: {self.dt}")
             if self.dt > 0:
                 self.acceleration = (self.v - self.previous_velocity) / self.dt
                 # rospy.loginfo(f"v: {self.v} m/s, w: {self.w} rad/s, acc: {self.acceleration} m/s²")

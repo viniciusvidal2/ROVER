@@ -2,16 +2,6 @@ import numpy as np
 import skfuzzy as fuzz
 from skfuzzy import control as ctrl
 
-# INPUTS
-# Distância para obstáculos (classificada como "próxima", "média", "distante")
-# Espaço de manobra disponível ("limitado", "amplo"), cada parte vai ter uma verificação limitado, amplo diferente
-# Velocidade do robô ("lenta", "moderada", "rápida")
-# Velocidade dos obstáculos ("estático", "lento", "rápido"), afastando, aproximando
-
-# OUTPUTS
-# alpha, beta, gamma
-
-
 def fuzzyLogicManeuveringSpace(space_parts, safety_distance):
     """Find the occupancy rate of the obstacle area to discover the available maneuvering space.
 
@@ -237,7 +227,7 @@ def fuzzyLogic(dist_input, space_input, safety_distance):
 
 # # space_input = fuzzyLogicManeuveringSpace(parts, safety_distance)
 # space_input = 28.12013594785211
-# alpha, beta, gamma = fuzzy_logic(dist_input, space_input, safety_distance)
+# alpha, beta, gamma = fuzzyLogic(dist_input, space_input, safety_distance)
 # print(f"Alpha: {alpha:.2f}, Beta: {beta:.2f}, Gamma: {gamma:.2f}")
 
 
