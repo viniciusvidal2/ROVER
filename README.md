@@ -4,7 +4,7 @@ This repository will contain code for the ROVER developed by GRIN lab.
 ## Getting started
 Clone the repository with its proper submodules in your folder of preference:
 ```bash
-git clone --recursive
+git clone --recursive https://github.com/viniciusvidal2/ROVER
 cd ROVER
 git submodule update --remote
 ```
@@ -84,8 +84,8 @@ xhost +
 
 To finish up, you must create two folders that will contain the debug bags and the output maps, which will be shared with the docker container:
 ```
-mkdir ~/Desktop/maps
-mkdir ~/Desktop/bags_debug
+mkdir ~/maps
+mkdir ~/bags_debug
 ```
 
 You should see the camera prompting in the monitor/radio transmitter next time you bootup. All other sensors should work just fine as well

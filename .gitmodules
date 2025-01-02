@@ -1,15 +1,3 @@
 [submodule "Livox-SDK2"]
 	path = Livox-SDK2
 	url = https://github.com/Livox-SDK/Livox-SDK2.git
-[submodule "mig_obstacle_avoidance"]
-	path = mig_obstacle_avoidance
-	url = https://github.com/ttrindader/mig_obstacle_avoidance.git
-	branch = main
-[submodule "livox_filter_mig"]
-	path = livox_filter_mig
-	url = https://github.com/viniciusvidal2/livox_filter_mig.git
-	branch = rover
-[submodule "slam-sensor-fusion"]
-	path = slam-sensor-fusion
-	url = https://github.com/viniciusvidal2/slam-sensor-fusion.git
-	branch = ros1

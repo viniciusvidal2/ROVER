@@ -20,8 +20,8 @@
     
     <!-- Launch Mavros related node -->
 	<include file="$(find mavros)/launch/node.launch">
-        <arg name="pluginlists_yaml" value="$(find mig_obstacle_avoidance)/config/mavros/apm_pluginlists.yaml" />
-        <arg name="config_yaml" value="$(find mig_obstacle_avoidance)/config/mavros/apm_config.yaml" />
+        <arg name="pluginlists_yaml" value="$(find vehicle_params)/config/apm_pluginlists.yaml" />
+        <arg name="config_yaml" value="$(find vehicle_params)/config/apm_config.yaml" />
         <arg name="fcu_url" value="$(arg fcu_url)" />
         <arg name="gcs_url" value="$(arg gcs_url)" />
         <arg name="tgt_system" value="$(arg tgt_system)" />
@@ -37,6 +37,9 @@
         <include file="$(find livox_ros_driver2)/launch/msg_MID360.launch">
             <arg name="rviz_enable" value="false"/>
         </include>
+
+        <!-- Livox data preprocessor -->
+        <include file="$(ptc_scan_preprocessing)/launch/preprocess_lidar.launch"/>
 
         <!-- USB camera for herelink transmission -->
         <include file="$(find camera_transmitter)/launch/camera_transmitter.launch"/>
@@ -56,12 +59,11 @@
         <arg name="rviz" value="false"/>
     </include> -->
 
-    <!-- Livox filter -->
-    <!-- <rosparam command="load" file="$(find livox_filter_mig)/config/params.yaml"/>
-    <node name="filter_raw_cloud_node" pkg="livox_filter_mig" type="filter_raw_cloud_node" output="screen"/> -->
+    <!-- Convert from PointCloud to LaserScan for obstacle avoidance -->
+    <include file="$(ptc_scan_preprocessing)/launch/ptc_laserscan_convertion.launch"/>
 
     <!-- Obstacle avoidance algorithm -->
-    <!-- <node pkg="mig_obstacle_avoidance" type="obstacle_avoidance_sc_node.py" name="obstacle_avoidance_sc_node">
+    <!-- <node pkg="obstacle_avoidance" type="obstacle_avoidance_sc_node.py" name="obstacle_avoidance_sc_node">
         <param name="sending_t" value="$(arg sending_t)"/>
         <param name="max_dist" value="$(arg max_dist)"/>
         <param name="corridor_width" value="$(arg corridor_width)"/>

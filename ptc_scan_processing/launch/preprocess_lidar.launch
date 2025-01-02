@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+
+<launch>   
+    <!-- Load the YAML file with parameters -->
+    <rosparam command="load" file="$(find vehicle_params)/config/params.yaml"/>
+
+    <!-- Run the cloud converter node -->
+    <node name="preprocess_lidar_scan_node" pkg="ptc_scan_processing" type="preprocess_lidar_scan_node" output="screen"/>
+</launch>

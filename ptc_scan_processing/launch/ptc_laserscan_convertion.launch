@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+
+<launch>
+    <!-- Loading args  -->
+    <arg name="rviz" default="false"/>
+
+    <!-- Load the YAML files with parameters -->
+    <rosparam command="load" file="$(find ptc_scan_processing)/config/params.yaml"/>
+    <rosparam command="load" file="$(find vehicle_params)/config/params.yaml"/>
+
+    <!-- Run the cloud converter node -->
+    <node name="convert_ptc_laserscan_node" pkg="ptc_scan_processing" type="convert_ptc_laserscan_node" output="screen"/>
+
+    <!-- Launch RViz with config -->
+    <node name="rviz_lidar_filter" pkg="rviz" type="rviz" args="-d $(find ptc_scan_processing)/config/rviz_config.rviz" output="screen" if="$(arg rviz)"/>
+</launch>
