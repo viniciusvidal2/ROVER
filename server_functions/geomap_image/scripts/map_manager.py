@@ -47,12 +47,15 @@ class MapManager:
 
         # Filters which values are going in the math
         valid_readings = list()
+        max_values = 50
         for gps, odom in zip(gps_list, odom_list):
             if gps[2] < 0:
                 continue
             if np.linalg.norm(np.array([odom[:-1]])) > 0.10:
                 break
             valid_readings.append({"gps": gps, "odom": odom})
+            if len(valid_readings) >= max_values:
+                break
         if len(valid_readings) == 0:
             print("NO VALID READINGS FROM THE MAP, NO VALID TRANSFORMATION TO GEOREF DATA.")
             return np.eye(4)
@@ -112,9 +115,9 @@ class MapManager:
         yx_extent = (aabb.get_max_bound()[:2] - min_xy_offset)[::-1]
         # Find the resolution that composes the proposed image resolution without changing map aspect ratio
         resolution_per_axis = self.image_size / yx_extent  # [pixel/meter]
-        resolution = np.min(resolution_per_axis)
+        resolution_pixel_m = np.min(resolution_per_axis)
         # Fixes the image size to be exact what it takes to generate the image
-        self.image_size = np.ceil(yx_extent * resolution).astype(int)
+        self.image_size = np.ceil(yx_extent * resolution_pixel_m).astype(int)
 
         # Get the transformation from world to map
         world_T_map = self.computeWorldTMap()
@@ -137,7 +140,7 @@ class MapManager:
         for p_map, p_color, p_world in zip(ptc_map_frame_points, ptc_point_colors, points_world_frame_h):
             # Operation to get the image coordinates based on the xy values in the map
             [u, v] = np.floor((p_map[:2] - min_xy_offset)
-                              * resolution).astype(int) - 1
+                              * resolution_pixel_m).astype(int) - 1
 
             # Only project if the point ir higher than the previous one, or no projection is in the pixel yet
             if map_z[v, u] == 0 or p_map[2] > map_z[v, u]:
@@ -153,24 +156,17 @@ class MapManager:
         # The coordinates that still contain zeros in Z image should be filled as much as possible
         map_z = self.smoothFillImage(
             image=map_z, kernel_size=7, iterations=5)
-        # If we ever find a missing height value, use the last valid one as an approximation
-        last_valid_z = 0
         # Go looking for missing utm data, and fill in with an approximation based on the pixel value
         for v in range(map_bev.shape[0]):
             for u in range(map_bev.shape[1]):
-                if map_z[v, u] != 0:
-                    last_valid_z = map_z[v, u]
-
                 key = f"{v}_{u}"
                 if map_coords[key]["utm_e"] == 0:
                     # Find the map coordinates using the pixel value and resolution,
                     # then use Z and transform to get the point in world frame
                     xy_map_frame = min_xy_offset + \
-                        np.array([u, v]) * resolution
-                    z_map_frame = map_z[v, u] if map_z[v,
-                                                       u] != 0 else last_valid_z
+                        np.array([u, v]) / resolution_pixel_m
                     xyz_map_frame_h = np.hstack(
-                        [xy_map_frame, np.array([z_map_frame, 1])])
+                        [xy_map_frame, np.array([map_z[v, u], 1])])
                     p_world = world_T_map @ xyz_map_frame_h
                     # Save to map dictionary
                     utm_e, utm_n, alt = p_world[0], p_world[1], p_world[2]
