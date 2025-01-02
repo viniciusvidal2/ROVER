@@ -4,6 +4,7 @@ CloudScanConverter::CloudScanConverter(ros::NodeHandle &nh, std::unordered_map<s
 {
     // Subscribe to the input point cloud
     cloud_sub_ = nh.subscribe<sensor_msgs::PointCloud2>("/localization/obstacle_ptc_lidar_frame", 1, &CloudScanConverter::cloudCallback, this);
+    // cloud_sub_ = nh.subscribe<sensor_msgs::PointCloud2>("/lidar_odometry/cloud_registered_body", 1, &CloudScanConverter::cloudCallback, this);
     // Output with converted laser scan
     out_scan_pub_ = nh.advertise<sensor_msgs::LaserScan>("/obstacle_avoidance/obstacles_scan", 1);
 
@@ -40,7 +41,6 @@ void CloudScanConverter::cloudCallback(const sensor_msgs::PointCloud2ConstPtr &c
     angles.reserve(cloud_in->points.size());
     for (const auto &p : cloud_in->points)
     {
-        // Apply the relative pose transformation
         const Eigen::Vector3f pp(p.x, p.y, p.z);
 
         // Filter Z values that are out of possible rover collision

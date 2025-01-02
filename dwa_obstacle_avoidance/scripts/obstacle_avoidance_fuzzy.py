@@ -71,9 +71,9 @@ class ObstacleAvoidance:
         self.goal_angle = 0
 
         # Subscribers to mavros and laserscan messages
-        running_on_rover = False
+        running_on_rover = True
         if running_on_rover:
-            rospy.Subscriber("/livox/scan", LaserScan,
+            rospy.Subscriber("/obstacle_avoidance/obstacles_scan", LaserScan,
                              self.laserScanCallback, queue_size=1)
         else:
             rospy.Subscriber("/mavros/lidar", LaserScan,
