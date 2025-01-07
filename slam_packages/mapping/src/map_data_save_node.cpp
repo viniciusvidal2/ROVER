@@ -6,7 +6,7 @@ MapDataSaver::MapDataSaver(ros::NodeHandle &nh)
     std::string map_name;
     ros::NodeHandle pnh("~");
     pnh.param("/debug/enable", debug_, false);
-    pnh.param("/map_data/save_relative_path", folder_save_path_, static_cast<std::string>("Desktop/map_data"));
+    pnh.param("/map_data/save_relative_path", folder_save_path_, static_cast<std::string>("maps"));
     pnh.param("/map_data/map_name", map_name, static_cast<std::string>("map"));
     pnh.param("/mapping/cloud_save_interval", cloud_save_interval_, 10);
     pnh.param("/mapping/min_counter_to_account_for_velocity", min_counter_to_account_for_velocity_, 100);

@@ -17,7 +17,7 @@ int main(int argc, char * argv[])
     ros::NodeHandle nh("~");
     // If map folder already exists, do not run mapping
     std::string map_folder = "", map_name = "";
-    nh.param("/map_data/save_relative_path", map_folder, static_cast<std::string>("Desktop/map_data"));
+    nh.param("/map_data/save_relative_path", map_folder, static_cast<std::string>("maps"));
     nh.param("/map_data/map_name", map_name, static_cast<std::string>("map"));
     std::string map_path = std::string(std::getenv("HOME")) + "/" + map_folder + "/" + map_name;
     if (FileManipulation::directoryExists(map_path))
