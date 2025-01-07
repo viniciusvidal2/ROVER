@@ -1,8 +1,9 @@
 #include "localization/global_map_frames_manager.h"
 
 GlobalMapFramesManager::GlobalMapFramesManager(const std::string data_folder, const std::string map_name, const std::size_t num_poses_max)
-    : data_folder_(data_folder), map_name_(map_name), num_poses_max_(num_poses_max)
+    : num_poses_max_(num_poses_max)
 {
+    map_path_ = data_folder + "/" + map_name;
 }
 
 std::vector<Eigen::Vector3d> GlobalMapFramesManager::loadOdometryPositions(const std::string &odom_positions_file) const
@@ -92,9 +93,9 @@ float GlobalMapFramesManager::getClosestAltitude(const double lat, const double 
 
 pcl::PointCloud<PointT>::Ptr GlobalMapFramesManager::getMapCloud(const float voxel_size) const
 {
-    // Check if the map_name_ exists in data_folder_, and if so just load it and return
+    // Check if the map_path_ exists with a built map, and if so just load it and return
     // If not, lets merge the scans and save it for next iterations
-    std::string map_cloud_path = data_folder_ + "/" + map_name_ + ".pcd";
+    std::string map_cloud_path = map_path_ + "/map.pcd";
     if (access(map_cloud_path.c_str(), F_OK) != -1)
     {
         pcl::PointCloud<PointT>::Ptr map_cloud(new pcl::PointCloud<PointT>);
@@ -115,7 +116,7 @@ pcl::PointCloud<PointT>::Ptr GlobalMapFramesManager::mergeScansAndSave(const flo
     struct dirent *ent;
 
     // Open the directory to look for all pcd files we need to create a map
-    if ((dir = opendir(data_folder_.c_str())) != NULL)
+    if ((dir = opendir(map_path_.c_str())) != NULL)
     {
         while ((ent = readdir(dir)) != NULL)
         {
@@ -123,7 +124,7 @@ pcl::PointCloud<PointT>::Ptr GlobalMapFramesManager::mergeScansAndSave(const flo
             if (file_name.size() > 4 && file_name.substr(file_name.size() - 4) == ".pcd")
             {
                 // Concatenate the root folder with the file name
-                std::string full_path = data_folder_ + "/" + file_name;
+                std::string full_path = map_path_ + "/" + file_name;
                 // Load the point cloud
                 pcl::PointCloud<PointT>::Ptr cloud(new pcl::PointCloud<PointT>);
                 pcl::io::loadPCDFile<PointT>(full_path, *cloud);
@@ -135,7 +136,7 @@ pcl::PointCloud<PointT>::Ptr GlobalMapFramesManager::mergeScansAndSave(const flo
     }
     else
     {
-        auto error_msg = "Could not open " + data_folder_ + " directory";
+        auto error_msg = "Could not open " + map_path_ + " directory";
         perror(error_msg.c_str());
         return map_cloud;
     }
@@ -152,7 +153,7 @@ pcl::PointCloud<PointT>::Ptr GlobalMapFramesManager::mergeScansAndSave(const flo
     vg.setLeafSize(voxel_size, voxel_size, voxel_size);
     vg.filter(*map_cloud);
     // Save the map cloud
-    pcl::io::savePCDFileBinary(data_folder_ + "/" + map_name_ + ".pcd", *map_cloud);
+    pcl::io::savePCDFileBinary(map_path_ + "/map.pcd", *map_cloud);
 
     return map_cloud;
 }
@@ -194,8 +195,8 @@ bool GlobalMapFramesManager::filterBadReadings(std::vector<Eigen::Vector3d> &odo
 Eigen::Matrix4d GlobalMapFramesManager::getMapTGlobal()
 {
     // Load the odometry positions and the global info
-    std::string odom_positions_file = data_folder_ + "/odometry_positions.txt";
-    std::string gps_yaw_file = data_folder_ + "/gps_imu_poses.txt";
+    std::string odom_positions_file = map_path_ + "/odometry_positions.txt";
+    std::string gps_yaw_file = map_path_ + "/gps_imu_poses.txt";
     std::vector<Eigen::Vector3d> odom_positions = loadOdometryPositions(odom_positions_file);
     std::vector<std::pair<Eigen::Vector3d, float>> latlonalt_yaw = loadGlobalInfo(gps_yaw_file);
     filterBadReadings(odom_positions, latlonalt_yaw);

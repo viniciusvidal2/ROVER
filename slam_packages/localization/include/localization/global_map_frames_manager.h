@@ -85,7 +85,7 @@ private:
                            std::vector<std::pair<Eigen::Vector3d, float>> &latlonalt_yaw) const;
 
     /// @brief Data folder where the map data is stored
-    std::string data_folder_, map_name_;
+    std::string map_path_;
 
     /// @brief Maximum number of poses to consider for the map
     std::size_t num_poses_max_;
