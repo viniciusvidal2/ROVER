@@ -5,8 +5,8 @@ ObstaclePointCloudGeneratorNode::ObstaclePointCloudGeneratorNode(ros::NodeHandle
     // Parameters
     ros::NodeHandle pnh("~");
     pnh.param("/debug/enable", debug_, false);
-    pnh.param("/map_data/home_relative_path", relative_folder_path_, static_cast<std::string>("Desktop/map_data"));
-    pnh.param("/map_data/name", map_name_, static_cast<std::string>("map"));
+    pnh.param("/map_data/home_relative_path", relative_folder_path_, static_cast<std::string>("maps"));
+    pnh.param("/map_data/map_name", map_name_, static_cast<std::string>("map"));
     pnh.param("/map_data/voxel_resolution", map_voxel_size_, 0.1f);
     pnh.param("/obstacle_avoidance/scan_crop_radius", scan_crop_radius_, 15.0f);
 
