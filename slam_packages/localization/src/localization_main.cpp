@@ -25,7 +25,7 @@ int main(int argc, char *argv[])
     ros::NodeHandle nh;
     // If map folder does not exist, do not run localization
     std::string map_folder = "", map_name = "";
-    nh.param("/map_data/home_relative_path", map_folder, static_cast<std::string>("Desktop/map_data"));
+    nh.param("/map_data/home_relative_path", map_folder, static_cast<std::string>("maps"));
     nh.param("/map_data/map_name", map_name, static_cast<std::string>("map"));
     std::string map_path = std::string(std::getenv("HOME")) + "/" + map_folder + "/" + map_name;
     if (!directoryExists(map_path))

@@ -5,8 +5,8 @@ LocalizationNode::LocalizationNode(ros::NodeHandle nh)
     // Parameters
     ros::NodeHandle pnh("~");
     pnh.param("/debug/enable", debug_, false);
-    pnh.param("/map_data/home_relative_path", relative_folder_path_, static_cast<std::string>("Desktop/map_data"));
-    pnh.param("/map_data/name", map_name_, static_cast<std::string>("map"));
+    pnh.param("/map_data/home_relative_path", relative_folder_path_, static_cast<std::string>("maps"));
+    pnh.param("/map_data/map_name", map_name_, static_cast<std::string>("map"));
     pnh.param("/map_data/max_map_optimization_poses", max_map_optimization_poses_, 50);
     pnh.param("/map_data/voxel_resolution", map_voxel_size_, 0.1f);
     pnh.param("/map_data/ref_frame_distance", ref_frame_distance_, 3.0f);
