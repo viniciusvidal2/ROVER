@@ -11,17 +11,8 @@ MapDataSaver::MapDataSaver(ros::NodeHandle &nh)
     pnh.param("/mapping/min_counter_to_account_for_velocity", min_counter_to_account_for_velocity_, 100);
     pnh.param("/mapping/min_velocity_to_count_as_movement", min_velocity_to_count_as_movement_, 0.1f);
 
-    // Create a folder, making sure it does not exist before
-    // If it exists, delete it and create it again
+    // Create a folder to store the recorded map
     folder_save_path_ = std::string(std::getenv("HOME")) + "/" + folder_save_path_;
-    if (FileManipulation::directoryExists(folder_save_path_))
-    {
-        std::string command = "rm -rf " + folder_save_path_ + "/*";
-        if (!system(command.c_str()))
-        {
-            ROS_WARN("Reseting folder %s to store new mapping data!", folder_save_path_.c_str());
-        }
-    }
     FileManipulation::createDirectory(folder_save_path_);
 
     // Create the txt file to save the poses received by odometry
