@@ -3,16 +3,17 @@
 MapDataSaver::MapDataSaver(ros::NodeHandle &nh)
 {
     // Parameters
+    std::string map_name;
     ros::NodeHandle pnh("~");
     pnh.param("/debug/enable", debug_, false);
     pnh.param("/map_data/save_relative_path", folder_save_path_, static_cast<std::string>("Desktop/map_data"));
-    pnh.param("/map_data/map_name", cloud_save_interval_, 10);
+    pnh.param("/map_data/map_name", map_name, static_cast<std::string>("map"));
     pnh.param("/mapping/cloud_save_interval", cloud_save_interval_, 10);
     pnh.param("/mapping/min_counter_to_account_for_velocity", min_counter_to_account_for_velocity_, 100);
     pnh.param("/mapping/min_velocity_to_count_as_movement", min_velocity_to_count_as_movement_, 0.1f);
 
     // Create a folder to store the recorded map
-    folder_save_path_ = std::string(std::getenv("HOME")) + "/" + folder_save_path_;
+    folder_save_path_ = std::string(std::getenv("HOME")) + "/" + folder_save_path_ + "/" + map_name;
     FileManipulation::createDirectory(folder_save_path_);
 
     // Create the txt file to save the poses received by odometry

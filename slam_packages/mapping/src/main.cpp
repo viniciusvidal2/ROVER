@@ -16,11 +16,13 @@ int main(int argc, char * argv[])
     ros::init(argc, argv, "map_data_save_node");
     ros::NodeHandle nh("~");
     // If map folder already exists, do not run mapping
-    std::string map_folder = "";
+    std::string map_folder = "", map_name = "";
     nh.param("/map_data/save_relative_path", map_folder, static_cast<std::string>("Desktop/map_data"));
-    if (FileManipulation::directoryExists(map_folder))
+    nh.param("/map_data/map_name", map_name, static_cast<std::string>("map"));
+    std::string map_path = std::string(std::getenv("HOME")) + "/" + map_folder + "/" + map_name;
+    if (FileManipulation::directoryExists(map_path))
     {
-        ROS_WARN("Map with name %s already exists, exiting mapping node ...", map_folder.c_str());
+        ROS_WARN("Map with name %s already exists, exiting mapping node ...", map_path.c_str());
         return 0;
     }
     std::shared_ptr<MapDataSaver> node = std::make_shared<MapDataSaver>(nh);
