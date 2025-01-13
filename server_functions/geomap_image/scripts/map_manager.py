@@ -97,11 +97,12 @@ class MapManager:
                 map_point_cloud += o3d.io.read_point_cloud(file_path)
         return map_point_cloud
 
-    def generateMapBev(self, ptc_map_frame: o3d.geometry.PointCloud) -> Tuple[np.ndarray, Dict]:
+    def generateMapBev(self, ptc_map_frame: o3d.geometry.PointCloud, world_T_map: np.ndarray) -> Tuple[np.ndarray, Dict]:
         """Generates the map birds eye view image, along with georeferenced data
 
         Args:
             ptc_map_frame (o3d.geometry.PointCloud): The map point cloud
+            world_T_map (np.ndarray): The transformation from map to world frame
 
         Returns:
             Tuple[np.ndarray, Dict]: bev image, dict with georef data
@@ -119,9 +120,6 @@ class MapManager:
         resolution_pixel_m = np.min(resolution_per_axis)
         # Fixes the image size to be exact what it takes to generate the image
         self.image_size = np.ceil(yx_extent * resolution_pixel_m).astype(int)
-
-        # Get the transformation from world to map
-        world_T_map = self.computeWorldTMap()
 
         # Output variables
         map_bev = np.zeros(shape=tuple(self.image_size), dtype=np.uint8)
@@ -178,7 +176,7 @@ class MapManager:
         map_bev = self.enhanceImageQuality(
             image=map_bev, kernel_size=3, iterations=1)
 
-        return map_bev, map_coords, world_T_map
+        return map_bev, map_coords
 
     def saveMap(self, map_bev: np.ndarray, map_ptc: o3d.geometry.PointCloud, map_coords: dict, world_T_map: np.ndarray) -> None:
         """Saves the map data
