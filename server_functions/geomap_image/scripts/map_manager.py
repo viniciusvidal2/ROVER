@@ -8,15 +8,15 @@ import utm
 
 
 class MapManager:
-    def __init__(self, rover_code: int = 0, folder: str = "", imsize: list = [1080, 1920]) -> None:
+    def __init__(self, map_name: str = "map_1", folder: str = "", imsize: list = [1080, 1920]) -> None:
         """Constructor
 
         Args:
-            rover_code (int, optional): The rover id. Defaults to 0.
+            map_name (str, optional): The map id. Defaults to map_1.
             folder (str, optional): The map folder from the rover. Defaults to "".
             imsize (list, optional): The output image map size [rows, cols]. Defaults to [1080, 1920].
         """
-        self.rover_code = rover_code
+        self.map_name = map_name
         self.map_folder = folder
         self.image_size = imsize
 
@@ -35,7 +35,7 @@ class MapManager:
             for i in range(1, len(lines)):
                 lat, lon, alt, yaw = map(float, lines[i].split())
                 gps_list.append((lat, lon, alt, yaw))
-            
+
         # Reads the odom data
         odom_file = os.path.join(self.map_folder, "odometry_positions.txt")
         odom_list = list()
@@ -57,7 +57,8 @@ class MapManager:
             if len(valid_readings) >= max_values:
                 break
         if len(valid_readings) == 0:
-            print("NO VALID READINGS FROM THE MAP, NO VALID TRANSFORMATION TO GEOREF DATA.")
+            print(
+                "NO VALID READINGS FROM THE MAP, NO VALID TRANSFORMATION TO GEOREF DATA.")
             return np.eye(4)
 
         # Get average translation from utm coordinates, average yaw in radians
@@ -177,36 +178,41 @@ class MapManager:
         map_bev = self.enhanceImageQuality(
             image=map_bev, kernel_size=3, iterations=1)
 
-        # Get the output JSON together
-        return map_bev, map_coords
+        return map_bev, map_coords, world_T_map
 
-    def saveMap(self, map_bev: np.ndarray, map_ptc: o3d.geometry.PointCloud, map_coords: dict) -> None:
+    def saveMap(self, map_bev: np.ndarray, map_ptc: o3d.geometry.PointCloud, map_coords: dict, world_T_map: np.ndarray) -> None:
         """Saves the map data
 
         Args:
             map_bev (np.ndarray): map birds eye view image, saved as png
             map_ptc (o3d.geometry.PointCloud): map point cloud, saved as pcd
             map_coords (dict): map georef data, saved as msgpack
+            world_T_map (np.ndarray): map to world frames transformation, saved as npy
         """
         # Rover name from the code
-        rover_name = "rover_" + str(self.rover_code)
+        map_name = "map_" + str(self.map_name)
 
         # Save the BEV image
         if len(map_bev > 0):
-            bev_path = os.path.join(self.map_folder, rover_name + ".png")
+            bev_path = os.path.join(self.map_folder, self.map_name + ".png")
             cv2.imwrite(bev_path, map_bev)
 
         # Save the map point cloud
         if (len(np.asarray(map_ptc.points)) > 0):
-            ptc_path = os.path.join(self.map_folder, rover_name + ".pcd")
+            ptc_path = os.path.join(self.map_folder, self.map_name + ".pcd")
             o3d.io.write_point_cloud(ptc_path, map_ptc, write_ascii=False)
 
         # Save the JSON file with coordinates
         if len(map_coords) > 0:
             coords_path = os.path.join(
-                self.map_folder, rover_name + ".msgpack")
+                self.map_folder, self.map_name + ".msgpack")
             with open(coords_path, "wb") as msgpack_file:
                 msgpack.dump(map_coords, msgpack_file)
+
+        # Save the map pose in world frame
+        world_T_map_path = os.path.join(
+            self.map_folder, self.map_name + ".npy")
+        np.save(world_T_map_path, world_T_map)
 
     def smoothFillImage(self, image: np.ndarray, kernel_size: int, iterations: int) -> np.ndarray:
         """Smooth float image to fill in some zeros
