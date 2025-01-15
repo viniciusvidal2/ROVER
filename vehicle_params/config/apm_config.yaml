@@ -279,3 +279,8 @@ wheel_odometry:
     child_frame_id: "base_link"
 
 # vim:set ts=2 sw=2 et:
+
+# rtcm plugin for RTK messages
+rtcm:
+  base_topic: "/rtcm"
+  enable: true
