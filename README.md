@@ -24,6 +24,7 @@ First of all, the embedded system expects some sensors and actuators to be conne
 - Dynamixel driver and motors
 - Livox mid360
 Make sure they are properly connected and configured. In the case of livox sensor, make sure the cable network has the proper local network manual IP address (192.168.1.50).
+When creating the embedded board image, make sure your user name is "rover".
 
 ### Installing docker engine on RPI5
 The following commands will install the Docker engine with a proper version for raspberry PI 5:
@@ -61,7 +62,7 @@ Wants=graphical.target
 
 [Service]
 Type=simple
-ExecStart=/home/YOUR_BOARD_USERNAME/ROVER/init_board.sh
+ExecStart=/home/rover/ROVER/init_board.sh
 Restart=on-failure
 RestartSec=10
 
@@ -111,5 +112,5 @@ You should not neet to run the container by hand in the embedded board, but you 
 
 - Running the docker container passing all the necessary info (provided that you have all the sensors connected. If for some reason you don't, remove the config that relates to the missing sensor):
 ```bash
-sudo docker run --restart=always -itd --device=/dev/ttyACM0 --device=/dev/ttyUSB0 --device /dev/video0:/dev/video0 --device /dev/video1:/dev/video1 --privileged --group-add video -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix -v /home/rover/Desktop/maps:/root/maps -v /home/rover/Desktop/bags_debug:/home/rover/bags_debug --network host --name rover_container rover_image:0.1
+sudo docker run --restart=always -itd --device=/dev/ttyACM0 --device=/dev/ttyUSB0 --device /dev/video0:/dev/video0 --device /dev/video1:/dev/video1 --privileged --group-add video -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix -v /home/rover/maps:/root/maps -v /home/rover/bags_debug:/home/rover/bags_debug --network host --name rover_container rover_image:0.1
 ```
