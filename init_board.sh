@@ -1,6 +1,6 @@
 #!/bin/bash
 
-LOGFILE="/home/grin/system_startup.log"
+LOGFILE="/home/rover/system_startup.log"
 
 log() {
     echo "$(date +'%Y-%m-%d %H:%M:%S') - $1" | tee -a $LOGFILE
@@ -34,7 +34,7 @@ done
 log "Display service is on!"
 
 # Create the folder that will be used for rosbag debug files
-mkdir -p "/home/grin/bags_debug"
+mkdir -p "/home/rover/bags_debug"
 
 # Run the docker container with proper parameters
 sleep 5s
