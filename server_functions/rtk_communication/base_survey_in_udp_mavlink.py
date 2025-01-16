@@ -2,9 +2,10 @@ import serial
 import socket
 from pyubx2 import UBXReader, UBXMessage
 from pymavlink import mavutil
+from pyrtcm import RTCMReader
 
 class RTKSurveyIn:
-    def __init__(self, port='COM4', baudrate=115200, udp_ip='192.168.10.45', udp_port=14551):
+    def __init__(self, port, baudrate, udp_ip, udp_port):
         self.port = port
         self.baudrate = baudrate
         self.udp_ip = udp_ip
@@ -44,17 +45,61 @@ class RTKSurveyIn:
         self.serial_conn.write(ubx_msg.serialize())
         print("Survey-In configuration sent.")
 
-    def monitor_and_transmit(self):
-        """Monitor Survey-In progress and send RTCM data over UDP."""
+    def monitor_survey_in(self):
+        """Monitor Survey-In progress and print it."""
         if not self.serial_conn:
-            print("No serial connection established.")
+            print("Conexão não estabelecida.")
             return
 
-        print("Monitoring Survey-In and transmitting RTCM data...")
+        print("Monitorando o progresso do Survey-In...")
         ubr = UBXReader(self.serial_conn)
         try:
             while True:
-                raw_data, parsed_data = ubr.read()
+                (raw_data, parsed_data) = ubr.read()
+                if parsed_data:
+                    # Monitoring NAV-SVIN (Survey-In progress)
+                    if parsed_data.identity == "NAV-SVIN":
+                        print(f"\nProgresso do Survey-In:")
+                        print(f"  Duração: {parsed_data.dur} segundos")
+                        print(f"  Precisão: {parsed_data.meanAcc / 10000:.3f} metros")
+                        print(f"  Concluído: {'Sim' if parsed_data.active == 0 else 'Não'}")
+                        if parsed_data.active == 0:  # Survey-In sucessfully completed
+                            print("\nSurvey-In concluído com sucesso!")
+                            break
+        except KeyboardInterrupt:
+            print("Monitoramento interrompido.")
+        except Exception as e:
+            print(f"Erro ao monitorar Survey-In: {e}")
+
+    def configure_rtcm_messages(self):
+        """Configures the RTCM3 messages required for RTK correction."""
+        print("Configurando mensagens RTCM3...")
+        
+        # Configuring RTCM messages via USB port
+        cfg_data = [
+            ("CFG_MSGOUT_RTCM_3X_TYPE1006_USB", 1),  # Base station position
+            ("CFG_MSGOUT_RTCM_3X_TYPE1077_USB", 1),  # GPS
+            ("CFG_MSGOUT_RTCM_3X_TYPE1087_USB", 1),  # GLONASS
+            ("CFG_MSGOUT_RTCM_3X_TYPE1097_USB", 1),  # Galileo
+            ("CFG_MSGOUT_RTCM_3X_TYPE1127_USB", 1),  # BeiDou
+            ("CFG_MSGOUT_RTCM_3X_TYPE1230_USB", 1),  # GLONASS code-phase biases
+        ]
+        
+        ubx_msg = UBXMessage.config_set(1, 0, cfg_data)
+        self.serial_conn.write(ubx_msg.serialize())
+        print("Mensagens RTCM3 configuradas")
+
+    def monitor_rtcm_output(self):
+        """Monitor and display RTCM messages using pyrtcm."""
+        print("Monitorando mensagens RTCM...")
+        rtcm_reader = RTCMReader(self.serial_conn)
+        
+        try:
+            while True:
+                (raw_data, parsed_data) = rtcm_reader.read()
+                if parsed_data:
+                    print(parsed_data)
+                    
                 if raw_data:
                     # Encapsulate raw RTCM data into MAVLink
                     rtcm_message = self.mavlink_connection.mav.gps_inject_data_encode(
@@ -63,23 +108,14 @@ class RTKSurveyIn:
                         len=len(raw_data),
                         data=raw_data
                     )
-                    # Send MAVLink RTCM message over UDP
                     self.udp_socket.sendto(rtcm_message.pack(self.mavlink_connection.mav), 
-                                           (self.udp_ip, self.udp_port))
+                                            (self.udp_ip, self.udp_port))
                     print("RTCM data sent.")
-
-                if parsed_data and parsed_data.identity == "NAV-SVIN":
-                    # Print Survey-In status
-                    print(f"Survey-In progress: {parsed_data.dur}s, "
-                          f"accuracy: {parsed_data.meanAcc / 10000:.3f}m, "
-                          f"completed: {'Yes' if parsed_data.active == 0 else 'No'}")
-                    if parsed_data.active == 0:
-                        print("Survey-In complete.")
-                        break
+                
         except KeyboardInterrupt:
-            print("Monitoring interrupted by user.")
+            print("Monitoramento RTCM interrompido")
         except Exception as e:
-            print(f"Error during monitoring: {e}")
+            print(f"Erro ao monitorar RTCM: {e}")
 
     def close(self):
         """Close serial and UDP connections."""
@@ -91,13 +127,16 @@ class RTKSurveyIn:
             print("UDP socket closed.")
 
 if __name__ == "__main__":
-    rtk = RTKSurveyIn(port='COM4', baudrate=115200, udp_ip='192.168.10.45', udp_port=14551)
+    rtk = RTKSurveyIn(port='COM4', baudrate=115200, udp_ip='192.168.10.161', udp_port=14551)
 
     if rtk.connect():
         try:
             # Configure Survey-In with accuracy limit in mm and minimum duration in seconds
-            rtk.configure_survey_in(acc_limit=2000, min_duration=60)
-            # Monitor progress and transmit RTCM data
-            rtk.monitor_and_transmit()
+            rtk.configure_survey_in(acc_limit=20000, min_duration=60)
+            # Monitor Survey In progress
+            rtk.monitor_survey_in()
+            # Transmit RTCM messages
+            rtk.configure_rtcm_messages()
+            rtk.monitor_rtcm_output()
         finally:
             rtk.close()
