@@ -1,10 +1,9 @@
 import serial
 from pyubx2 import UBXReader, UBXMessage
-
-# Código para configurar a base no modo Survey-In e monitrar o status da configuração
+from pyrtcm import RTCMReader, RTCMMessage
 
 class RTKSurveyIn:
-    def __init__(self, port='COM4', baudrate=115200):
+    def __init__(self, port, baudrate=115200):
         self.port = port
         self.baudrate = baudrate
         self.serial_conn = None
@@ -51,7 +50,7 @@ class RTKSurveyIn:
                 if parsed_data:
                     # Monitorar NAV-SVIN (progresso do Survey-In)
                     if parsed_data.identity == "NAV-SVIN":
-                        print(parsed_data)
+                        # print(parsed_data)
                         print(f"\nProgresso do Survey-In:")
                         print(f"  Duração: {parsed_data.dur} segundos")
                         print(f"  Precisão: {parsed_data.meanAcc / 10000:.3f} metros")
@@ -59,22 +58,45 @@ class RTKSurveyIn:
                         if parsed_data.active == 0:  # Survey-In concluído
                             print("\nSurvey-In concluído com sucesso!")
                             break
-                    # Monitorar NAV-PVT (dados de posição)
-                    elif parsed_data.identity == "NAV-PVT":
-                        if hasattr(parsed_data, "lat") and hasattr(parsed_data, "lon"):
-                            lat = parsed_data.lat
-                            lon = parsed_data.lon
-                            alt = parsed_data.hMSL / 1000  # Altura em metros
-                            print(f"\nCoordenadas atuais:")
-                            print(f"  Latitude: {lat:.7f}°")
-                            print(f"  Longitude: {lon:.7f}°")
-                            print(f"  Altitude: {alt:.2f} metros (nível do mar)")
-                        else:
-                            print("Dados NAV-PVT inválidos ou incompletos.")
         except KeyboardInterrupt:
             print("Monitoramento interrompido.")
         except Exception as e:
             print(f"Erro ao monitorar Survey-In: {e}")
+
+    def configure_rtcm_messages(self):
+        """Configura as mensagens RTCM3 necessárias para correção RTK."""
+        print("Configurando mensagens RTCM3...")
+        
+        # Configuração das mensagens RTCM via porta USB
+        cfg_data = [
+            ("CFG_MSGOUT_RTCM_3X_TYPE1006_USB", 1),  # Posição da estação base
+            ("CFG_MSGOUT_RTCM_3X_TYPE1077_USB", 1),  # GPS
+            ("CFG_MSGOUT_RTCM_3X_TYPE1087_USB", 1),  # GLONASS
+            ("CFG_MSGOUT_RTCM_3X_TYPE1097_USB", 1),  # Galileo
+            ("CFG_MSGOUT_RTCM_3X_TYPE1127_USB", 1),  # BeiDou
+            ("CFG_MSGOUT_RTCM_3X_TYPE1230_USB", 1),  # GLONASS code-phase biases
+        ]
+        
+        ubx_msg = UBXMessage.config_set(1, 0, cfg_data)
+        self.serial_conn.write(ubx_msg.serialize())
+        print("Mensagens RTCM3 configuradas")
+
+    def monitor_rtcm_output(self):
+        """Monitora e exibe as mensagens RTCM usando pyrtcm."""
+        print("Monitorando mensagens RTCM...")
+        rtcm_reader = RTCMReader(self.serial_conn)
+        
+        try:
+            while True:
+                (raw_data, parsed_data) = rtcm_reader.read()
+                if parsed_data:
+                    # parsed_data é um objeto RTCMMessage com os dados já parseados
+                    print(parsed_data)
+                    
+        except KeyboardInterrupt:
+            print("Monitoramento RTCM interrompido")
+        except Exception as e:
+            print(f"Erro ao monitorar RTCM: {e}")
 
     def close(self):
         """Fecha a conexão serial."""
@@ -83,13 +105,15 @@ class RTKSurveyIn:
             print("Conexão fechada.")
 
 if __name__ == "__main__":
-    rtk = RTKSurveyIn(port='COM4', baudrate=115200)
+    rtk = RTKSurveyIn(port='COM24', baudrate=115200)
 
     if rtk.connect():
         try:
-            #  Configura Survey-In com precisão em mm e duração mínima em segundos
-            rtk.configure_survey_in(acc_limit=2000, min_duration=60)
+            rtk.configure_survey_in(acc_limit=20000, min_duration=60)
             # Monitorar progresso do Survey-In e exibir coordenadas
             rtk.monitor_survey_in()
+            # Após survey-in bem sucedido, configura e monitora RTCM
+            rtk.configure_rtcm_messages()
+            rtk.monitor_rtcm_output()
         finally:
             rtk.close()
