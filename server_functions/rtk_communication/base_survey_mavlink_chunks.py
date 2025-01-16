@@ -13,6 +13,7 @@ class RTKSurveyIn:
         self.serial_conn = None
         self.udp_socket = None
         self.mavlink_connection = None
+        self.inject_seq_nr = 0
 
     def connect(self):
         """Connect to GNSS receiver and prepare UDP socket."""
@@ -23,8 +24,8 @@ class RTKSurveyIn:
             # Set up UDP socket
             self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             print(f"UDP socket ready to send to {self.udp_ip}:{self.udp_port}")
-            # Set up MAVLink connection (local dummy for message creation)
-            self.mavlink_connection = mavutil.mavlink_connection('udpout:127.0.0.1:14550')
+            # Set up MAVLink connection
+            self.mavlink_connection = mavutil.mavlink_connection(f'udpout:{self.udp_ip}:{self.udp_port}', dialect='common')
             return True
         except serial.SerialException as e:
             print(f"Error connecting to GNSS receiver: {e}")
@@ -55,7 +56,7 @@ class RTKSurveyIn:
         ubr = UBXReader(self.serial_conn)
         try:
             while True:
-                (raw_data, parsed_data) = ubr.read()
+                (_, parsed_data) = ubr.read()
                 if parsed_data:
                     # Monitoring NAV-SVIN (Survey-In progress)
                     if parsed_data.identity == "NAV-SVIN":
@@ -77,12 +78,12 @@ class RTKSurveyIn:
         
         # Configuring RTCM messages via USB port
         cfg_data = [
-            ("CFG_MSGOUT_RTCM_3X_TYPE1006_USB", 1),  # Base station position
+            ("CFG_MSGOUT_RTCM_3X_TYPE1005_USB", 1),  # Base station position
             ("CFG_MSGOUT_RTCM_3X_TYPE1077_USB", 1),  # GPS
             ("CFG_MSGOUT_RTCM_3X_TYPE1087_USB", 1),  # GLONASS
+            ("CFG_MSGOUT_RTCM_3X_TYPE1230_USB", 1),  # GLONASS code-phase biases
             ("CFG_MSGOUT_RTCM_3X_TYPE1097_USB", 1),  # Galileo
             ("CFG_MSGOUT_RTCM_3X_TYPE1127_USB", 1),  # BeiDou
-            ("CFG_MSGOUT_RTCM_3X_TYPE1230_USB", 1),  # GLONASS code-phase biases
         ]
         
         ubx_msg = UBXMessage.config_set(1, 0, cfg_data)
@@ -96,25 +97,54 @@ class RTKSurveyIn:
         
         try:
             while True:
-                (raw_data, parsed_data) = rtcm_reader.read()
+                (data, parsed_data) = rtcm_reader.read()
                 if parsed_data:
                     print(parsed_data)
 
-                if raw_data:
-                    # Split RTCM data into 110-byte chunks
-                    for i in range(0, len(raw_data), 110):
-                        chunk = raw_data[i:i + 110]
-                        # Encapsulate chunk in MAVLink message
-                        rtcm_message = self.mavlink_connection.mav.gps_inject_data_encode(
-                            target_system=1,
-                            target_component=1,
-                            len=len(chunk),
-                            data=chunk
+                if data:
+                    msglen = 180
+
+                    # Check if the message is too large
+                    if len(data) > msglen * 4:
+                        print(f"DGPS: Message too large {len(data)}")
+                        return
+                    
+                    # Determine the number of messages to send
+                    msgs = len(data) // msglen if len(data) % msglen == 0 else (len(data) // msglen) + 1
+
+                    for a in range(0, msgs):
+                        flags = 0
+                        # Set the fragment flag if we're sending more than 1 packet
+                        if msgs > 1:
+                            flags = 1
+                        # Set the ID of this fragment
+                        flags |= (a & 0x3) << 1
+                        # Set an overall sequence number
+                        flags |= (self.inject_seq_nr & 0x1f) << 3
+
+                        # Get the chunk of data
+                        amount = min(len(data) - a * msglen, msglen)
+                        datachunk = data[a * msglen : a * msglen + amount]
+
+                        # Send the RTCM data via MAVLink
+                        self.mavlink_connection.mav.gps_rtcm_data_send(
+                            flags,
+                            len(datachunk),
+                            bytearray(datachunk.ljust(180, b'\0'))
                         )
-                        # Send chunk over UDP
-                        self.udp_socket.sendto(rtcm_message.pack(self.mavlink_connection.mav),
-                                            (self.udp_ip, self.udp_port))
-                        print(f"RTCM chunk sent: {len(chunk)} bytes")
+                        # # Send chunk over UDP
+                        # self.udp_socket.sendto(rtcm_message.pack(self.mavlink_connection.mav),
+                        #                     (self.udp_ip, self.udp_port))
+                    # Send a terminal 0-length message if we sent 2 or 3 exactly-full messages.     
+                    if (msgs < 4) and (len(data) % msglen == 0) and (len(data) > msglen):
+                        flags = 1 | (msgs & 0x3)  << 1 | (self.inject_seq_nr & 0x1f) << 3
+                        self.mavlink_connection.mav.gps_rtcm_data_send(
+                            flags,
+                            0,
+                            bytearray("".ljust(180, '\0')))
+            
+                    self.inject_seq_nr += 1
+                    print(f"RTCM chunk sent: {len(datachunk)} bytes")
         except KeyboardInterrupt:
             print("RTCM monitoring interrupted.")
         except Exception as e:
@@ -128,6 +158,9 @@ class RTKSurveyIn:
         if self.udp_socket:
             self.udp_socket.close()
             print("UDP socket closed.")
+        if self.mavlink_connection:
+            self.mavlink_connection.close()
+            print("MAVLink connection closed.")
 
 if __name__ == "__main__":
     rtk = RTKSurveyIn(port='COM4', baudrate=115200, udp_ip='192.168.10.161', udp_port=14551)
