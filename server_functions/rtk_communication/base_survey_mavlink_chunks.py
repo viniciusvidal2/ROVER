@@ -163,7 +163,7 @@ class RTKSurveyIn:
             print("MAVLink connection closed.")
 
 if __name__ == "__main__":
-    rtk = RTKSurveyIn(port='COM4', baudrate=115200, udp_ip='192.168.10.161', udp_port=14551)
+    rtk = RTKSurveyIn(port='COM4', baudrate=115200, udp_ip='192.168.10.161', udp_port=14550)
 
     if rtk.connect():
         try:
