@@ -189,7 +189,6 @@ class RTKBaseReceiver:
 
                     # Update sequence number so the FCU can know we are done with this message
                     self.inject_seq_nr += 1
-                    print(f"RTCM chunk sent: {len(data_chunk)} bytes")
                     # Print the current send frequency
                     end_time = time()
                     print("Message send frequency: {:.2f} Hz".format(1/(end_time - start_time)))
