@@ -20,6 +20,7 @@ class RTKBaseReceiver:
         self.udp_port = udp_port
         self.serial_conn = None
         self.mavlink_connection = None
+        # Sequence number for RTCM messages
         self.inject_seq_nr = 0
 
     def connect(self):
@@ -37,10 +38,16 @@ class RTKBaseReceiver:
             print(f"Error connecting to GNSS receiver: {e}")
             return False
 
-    def configureSurveyIn(self, acc_limit, min_duration):
-        """Configure receiver for Survey-In mode."""
+    def configureSurveyIn(self, acc_limit: int, min_duration: int) -> None:
+        """Configure the Survey-In procedure.
+
+        Args:
+            acc_limit (int): Accuracy limit in millimeters
+            min_duration (int): Minimum duration to run Survey-In in seconds
+        """
         print("Configuring Survey-In...")
-        acc_limit = int(round(acc_limit / 0.1, 0))  # Convert to required units
+        # Convert to required units
+        acc_limit = int(round(acc_limit / 0.1, 0))
         cfg_data = [
             ("CFG_TMODE_MODE", 1),  # Survey-In
             ("CFG_TMODE_SVIN_ACC_LIMIT", acc_limit),
@@ -93,7 +100,6 @@ class RTKBaseReceiver:
             ("CFG_MSGOUT_RTCM_3X_TYPE1097_USB", 1),  # Galileo
             ("CFG_MSGOUT_RTCM_3X_TYPE1127_USB", 1),  # BeiDou
         ]
-
         ubx_msg = UBXMessage.config_set(1, 0, cfg_data)
         self.serial_conn.write(ubx_msg.serialize())
         print("RTCM3 messages configuration sent.")
