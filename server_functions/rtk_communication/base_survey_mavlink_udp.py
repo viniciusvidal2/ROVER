@@ -1,13 +1,20 @@
 import serial
-import socket
 from pyubx2 import UBXReader, UBXMessage
 from pymavlink import mavutil
 from pyrtcm import RTCMReader
 
 
 class RTKBaseReceiver:
-    def __init__(self, port, baudrate, udp_ip, udp_port):
-        self.port = port
+    def __init__(self, usb_port: str, baudrate: int, udp_ip: str, udp_port: int) -> None:
+        """Constructor
+
+        Args:
+            usb_port (str): usb port of the GNSS receiver
+            baudrate (int): usb port baudrate
+            udp_ip (str): client IP
+            udp_port (int): client UDP port (defaults to 14550)
+        """
+        self.usb_port = usb_port
         self.baudrate = baudrate
         self.udp_ip = udp_ip
         self.udp_port = udp_port
@@ -20,8 +27,8 @@ class RTKBaseReceiver:
         try:
             # Connect to serial port
             self.serial_conn = serial.Serial(
-                self.port, self.baudrate, timeout=1)
-            print(f"Connected to GNSS receiver on {self.port}")
+                self.usb_port, self.baudrate, timeout=1)
+            print(f"Connected to GNSS receiver on {self.usb_port}")
             # Set up MAVLink connection
             self.mavlink_connection = mavutil.mavlink_connection(
                 f'udpout:{self.udp_ip}:{self.udp_port}', dialect='common')
@@ -60,9 +67,9 @@ class RTKBaseReceiver:
                     # Monitoring NAV-SVIN (Survey-In progress)
                     if parsed_data.identity == "NAV-SVIN":
                         print(f"\nSurvey in progress:")
-                        print(f"  Duration: {parsed_data.dur} segundos")
+                        print(f"  Duration: {parsed_data.dur} seconds")
                         print(
-                            f"  Precision: {parsed_data.meanAcc / 10000:.3f} metros")
+                            f"  Precision: {parsed_data.meanAcc / 10000:.3f} meters")
                         print(
                             f"  Finished: {'Yes' if parsed_data.active == 0 else 'No'}")
                         if parsed_data.active == 0:  # Survey-In sucessfully completed
@@ -157,6 +164,7 @@ class RTKBaseReceiver:
                         self.mavlink_connection.mav.gps_rtcm_data_send(
                             flags, 0, bytearray("".ljust(180, '\0')))
 
+                    # Update sequence number so the FCU can know we are done with this message
                     self.inject_seq_nr += 1
                     print(f"RTCM chunk sent: {len(data_chunk)} bytes")
         except KeyboardInterrupt:
@@ -177,9 +185,17 @@ class RTKBaseReceiver:
             print("MAVLink connection closed.")
 
 
-if __name__ == "__main__":
+def main(usb_port: str, baudrate: int, udp_ip: str, udp_port: int) -> None:
+    """Generates the Base RTK procedure and monitors the Survey-In and RTCM messages.
+
+    Args:
+        usb_port (str): base receiver USB port
+        baudrate (int): base receiver baudrate
+        udp_ip (str): client IP
+        udp_port (int): client UDP port (defaults to 14550)
+    """
     rtk_base_receiver = RTKBaseReceiver(
-        port='COM4', baudrate=115200, udp_ip='192.168.10.161', udp_port=14550)
+        usb_port=usb_port, baudrate=baudrate, udp_ip=udp_ip, udp_port=udp_port)
 
     if rtk_base_receiver.connect():
         try:
@@ -193,3 +209,7 @@ if __name__ == "__main__":
             rtk_base_receiver.monitorRtcmOutput()
         finally:
             rtk_base_receiver.close()
+
+
+if __name__ == "__main__":
+    main(usb_port='COM4', baudrate=115200, udp_ip='192.168.10.1', udp_port=14550)
