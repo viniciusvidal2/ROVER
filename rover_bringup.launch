@@ -15,7 +15,7 @@
 
     <!-- Set fcu_url and gcs_url based on SITL flag -->
     <arg unless="$(arg SITL)" name="fcu_url" default="/dev/ttyACM0:57600"/>
-    <arg unless="$(arg SITL)" name="gcs_url" default="udp://:14551@0.0.0.0:14551"/>
+    <arg unless="$(arg SITL)" name="gcs_url" default="udp://:14550@0.0.0.0:14550"/>
     <arg if="$(arg SITL)" name="fcu_url" default="tcp://127.0.0.1:5762"/>
     <arg if="$(arg SITL)" name="gcs_url" default="tcp://127.0.0.1:5763"/>
     
