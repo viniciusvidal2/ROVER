@@ -2,6 +2,7 @@ import serial
 from pyubx2 import UBXReader, UBXMessage
 from pymavlink import mavutil
 from pyrtcm import RTCMReader
+from time import time
 
 
 class RTKBaseReceiver:
@@ -127,6 +128,9 @@ class RTKBaseReceiver:
 
         try:
             while True:
+                # Measuring time to avoid sending messages too fast
+                start_time = time()
+                # Read RTCM data
                 (data, parsed_data) = rtcm_reader.read()
                 if parsed_data:
                     print(parsed_data)
@@ -173,6 +177,9 @@ class RTKBaseReceiver:
                     # Update sequence number so the FCU can know we are done with this message
                     self.inject_seq_nr += 1
                     print(f"RTCM chunk sent: {len(data_chunk)} bytes")
+                    # Print the current send frequency
+                    end_time = time()
+                    print("Message send frequency: {:.2f} Hz".format(1/(end_time - start_time)))
         except KeyboardInterrupt:
             print("RTCM monitoring interrupted.")
         except Exception as e:
