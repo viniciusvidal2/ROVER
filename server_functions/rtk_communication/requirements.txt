@@ -1,0 +1,5 @@
+pyserial==3.5
+pyubx2==1.2.49
+pymavlink==2.4.42
+pyrtcm==1.1.4
+PyYAML==6.0.2

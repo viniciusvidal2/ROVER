@@ -6,7 +6,6 @@ from time import time
 import yaml
 from typing import Tuple
 
-
 class RTKBaseReceiver:
     def __init__(self, usb_port: str, baudrate: int, rovers_file: str) -> None:
         """Constructor
@@ -121,8 +120,7 @@ class RTKBaseReceiver:
         flags |= (self.inject_seq_nr & 0x1f) << 3
         # Prepare the data chunk
         amount = min(len(msg_data) - chunk_number * msg_len, msg_len)
-        data_chunk = msg_data[chunk_number *
-                              msg_len: chunk_number * msg_len + amount]
+        data_chunk = msg_data[chunk_number *msg_len: chunk_number * msg_len + amount]
 
         return (flags, data_chunk)
 
@@ -143,29 +141,31 @@ class RTKBaseReceiver:
         print("Monitoring RTCM messages...")
         rtcm_reader = RTCMReader(self.gnss_connection)
 
+        start_time = 0
         while True:
             # Measuring time to avoid sending messages too fast
-            start_time = time()
+            
             # Read RTCM data
-            (data, _) = rtcm_reader.read()
-            if data:
+            if not start_time:
+                start_time = time()
+            (raw_data, parsed_data) = rtcm_reader.read()
+            if raw_data:
                 msg_len = 180  # Maximum length of RTCM message [bytes]
                 # Check if the message is too large
-                if len(data) > msg_len * 4:
-                    print(f"DGPS: Message too large {len(data)}")
+                if len(raw_data) > msg_len * 4:
+                    print(f"DGPS: Message too large {len(raw_data)}")
                     return
 
                 # Determine the number of messages to send and send each chunk
-                n_chunks = len(
-                    data) // msg_len if len(data) % msg_len == 0 else (len(data) // msg_len) + 1
+                n_chunks = len(raw_data) // msg_len if len(raw_data) % msg_len == 0 else (len(raw_data) // msg_len) + 1
                 for chunk_id in range(0, n_chunks):
                     # Send the RTCM data for the rovers via mavlink connections
                     flags, data_chunk = self.createMessageContent(
-                        data, chunk_id, n_chunks, msg_len)
+                        raw_data, chunk_id, n_chunks, msg_len)
                     self.sendMessageToRovers(
                         flags=flags, data_chunk=data_chunk)
                 # Send a terminal 0-length message if we sent 2 or 3 exactly-full messages.
-                if (n_chunks < 4) and (len(data) % msg_len == 0) and (len(data) > msg_len):
+                if (n_chunks < 4) and (len(raw_data) % msg_len == 0) and (len(raw_data) > msg_len):
                     flags = 1 | (n_chunks & 0x3) << 1 | (
                         self.inject_seq_nr & 0x1f) << 3
                     data_chunk = ""
@@ -175,11 +175,11 @@ class RTKBaseReceiver:
                 # Update sequence number so the FCU can know we are done with this message
                 self.inject_seq_nr += 1
                 print(f"RTCM chunk sent: {len(data_chunk)} bytes")
-                # Print the current send frequency
+            if parsed_data.identity == "1230":
                 end_time = time()
-                print("Message send frequency: {:.2f} Hz".format(
-                    1/(end_time - start_time)))
-                start_time = time()
+                # Print the current send frequency
+                print(f"Message send frequency: {1/(end_time - start_time):.2f} Hz")
+                start_time = 0
 
     def close(self) -> None:
         """Close serial and UDP connections."""
@@ -205,8 +205,7 @@ def main(usb_port: str, baudrate: int, rovers_file: str) -> None:
     if rtk_base_receiver.connectToReceiver():
         try:
             # Configure Survey-In with accuracy limit in mm and minimum duration in seconds
-            rtk_base_receiver.configureSurveyIn(
-                acc_limit=20000, min_duration=10)
+            rtk_base_receiver.configureSurveyIn(acc_limit=20000, min_duration=10)
             # Monitor Survey In progress
             rtk_base_receiver.monitorSurveyIn()
             # Transmit RTCM messages
