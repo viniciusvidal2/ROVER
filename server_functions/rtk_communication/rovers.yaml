@@ -1,0 +1,7 @@
+rovers:
+  - name: rover_1
+    ip: 192.168.0.101
+    port: 14550
+  - name: rover_2
+    ip: 192.168.0.102
+    port: 14550
