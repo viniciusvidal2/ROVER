@@ -27,23 +27,19 @@ class RTKBaseReceiver:
             rovers_list = yaml.safe_load(file)
             # List of mavlink connections to rovers
             self.rovers_mavlink_connections = [mavutil.mavlink_connection(
-                f'udpout:{rover["ip"]}:{rover["port"]}', dialect='common') for rover in rovers_list]
+                f'udpout:{rover["ip"]}:{rover["port"]}', dialect='common') for rover in rovers_list["rovers"]]
 
     def connectToReceiver(self):
         """Connect to GNSS receiver and prepare UDP socket."""
-        try:
-            # Connect to serial port
-            self.serial_conn = serial.Serial(
-                self.usb_port, self.baudrate, timeout=1)
-            print(f"Connected to GNSS receiver on {self.usb_port}")
-            # # Set up MAVLink connection
-            # self.mavlink_connection = mavutil.mavlink_connection(
-            #     f'udpout:{self.udp_ip}:{self.udp_port}', dialect='common')
-            return True
-        except serial.SerialException as e:
-            print(f"Error connecting to GNSS receiver: {e}")
-            return False
-
+        # Connect to serial port
+        self.serial_conn = serial.Serial(
+            self.usb_port, self.baudrate, timeout=1)
+        print(f"Connected to GNSS receiver on {self.usb_port}")
+        # # Set up MAVLink connection
+        # self.mavlink_connection = mavutil.mavlink_connection(
+        #     f'udpout:{self.udp_ip}:{self.udp_port}', dialect='common')
+        return True
+    
     def configureSurveyIn(self, acc_limit: int, min_duration: int) -> None:
         """Configure the Survey-In procedure.
 
@@ -73,25 +69,21 @@ class RTKBaseReceiver:
 
         print("Monitoring survey in progress...")
         ubr = UBXReader(self.serial_conn)
-        try:
-            while True:
-                (_, parsed_data) = ubr.read()
-                if parsed_data:
-                    # Monitoring NAV-SVIN (Survey-In progress)
-                    if parsed_data.identity == "NAV-SVIN":
-                        print(f"\nSurvey in progress:")
-                        print(f"  Duration: {parsed_data.dur} seconds")
-                        print(
-                            f"  Precision: {parsed_data.meanAcc / 10000:.3f} meters")
-                        print(
-                            f"  Finished: {'Yes' if parsed_data.active == 0 else 'No'}")
-                        if parsed_data.active == 0:  # Survey-In sucessfully completed
-                            print("\nSurvey in finished successfuly!")
-                            break
-        except KeyboardInterrupt:
-            print("Monitoring interrupted.")
-        except Exception as e:
-            print(f"Error when monitoring survey in: {e}")
+
+        while True:
+            (_, parsed_data) = ubr.read()
+            if parsed_data:
+                # Monitoring NAV-SVIN (Survey-In progress)
+                if parsed_data.identity == "NAV-SVIN":
+                    print(f"\nSurvey in progress:")
+                    print(f"  Duration: {parsed_data.dur} seconds")
+                    print(
+                        f"  Precision: {parsed_data.meanAcc / 10000:.3f} meters")
+                    print(
+                        f"  Finished: {'Yes' if parsed_data.active == 0 else 'No'}")
+                    if parsed_data.active == 0:  # Survey-In sucessfully completed
+                        print("\nSurvey in finished successfuly!")
+                        break
 
     def configureRtcmMessages(self):
         """Configures the RTCM3 messages required for RTK correction."""
@@ -110,7 +102,7 @@ class RTKBaseReceiver:
         self.serial_conn.write(ubx_msg.serialize())
         print("RTCM3 messages configuration sent.")
 
-    def createMessageContent(self, msg_data, chunk_number, n_chunks, msg_len):
+    def createMessageContent(self, msg_data: bytes, chunk_number: int, n_chunks: int, msg_len: int):
         flags = 0
         # Set the fragment flag if we're sending more than 1 packet
         if n_chunks > 1:
@@ -120,13 +112,13 @@ class RTKBaseReceiver:
         # Set an overall sequence number
         flags |= (self.inject_seq_nr & 0x1f) << 3
 
-        amount = min(len(chunk_number) - chunk_number * msg_len, msg_len)
+        amount = min(len(msg_data) - chunk_number * msg_len, msg_len)
         data_chunk = msg_data[chunk_number *
                               msg_len: chunk_number * msg_len + amount]
 
         return (flags, data_chunk)
     
-    def sendMessageToRovers(self, flags, data_chunk):
+    def sendMessageToRovers(self, flags: int, data_chunk: bytes):
         for mavlink_connection in self.rovers_mavlink_connections:
             mavlink_connection.mav.gps_rtcm_data_send(
                 flags, len(data_chunk), bytearray(data_chunk.ljust(180, b'\0')))
@@ -137,74 +129,68 @@ class RTKBaseReceiver:
         print("Monitoring RTCM messages...")
         rtcm_reader = RTCMReader(self.serial_conn)
 
-        try:
-            while True:
-                # Measuring time to avoid sending messages too fast
+        while True:
+            # Measuring time to avoid sending messages too fast
+            start_time = time()
+            # Read RTCM data
+            (data, parsed_data) = rtcm_reader.read()
+            if parsed_data:
+                print(parsed_data)
+
+            if data:
+                msg_len = 180  # Maximum length of RTCM message [bytes]
+                # Check if the message is too large
+                if len(data) > msg_len * 4:
+                    print(f"DGPS: Message too large {len(data)}")
+                    return
+
+                # Determine the number of messages to send
+                n_chunks = len(
+                    data) // msg_len if len(data) % msg_len == 0 else (len(data) // msg_len) + 1
+
+                for chunk_id in range(0, n_chunks):
+                    # flags = 0
+                    # # Set the fragment flag if we're sending more than 1 packet
+                    # if n_chunks > 1:
+                    #     flags = 1
+                    # # Set the ID of this fragment
+                    # flags |= (chunk_id & 0x3) << 1
+                    # # Set an overall sequence number
+                    # flags |= (self.inject_seq_nr & 0x1f) << 3
+
+                    # # Get the chunk of data
+                    # amount = min(len(data) - chunk_id * msg_len, msg_len)
+                    # data_chunk = data[chunk_id * msg_len : chunk_id * msg_len + amount]
+
+                    flags, data_chunk = self.createMessageContent(
+                        data, chunk_id, n_chunks, msg_len)
+
+                    # Send the RTCM data via MAVLink
+                    self.sendMessageToRovers(flags=flags, data_chunk=data_chunk)
+                    # self.mavlink_connection.mav.gps_rtcm_data_send(flags, len(data_chunk), bytearray(data_chunk.ljust(180, b'\0'))
+                    #                                                )
+                # Send a terminal 0-length message if we sent 2 or 3 exactly-full messages.
+                if (n_chunks < 4) and (len(data) % msg_len == 0) and (len(data) > msg_len):
+                    flags = 1 | (n_chunks & 0x3) << 1 | (
+                        self.inject_seq_nr & 0x1f) << 3
+                    data_chunk = ""
+                    self.sendMessageToRovers(flags=flags, data_chunk=data_chunk)
+                    # self.mavlink_connection.mav.gps_rtcm_data_send(
+                    #     flags, 0, bytearray("".ljust(180, '\0')))
+
+                # Update sequence number so the FCU can know we are done with this message
+                self.inject_seq_nr += 1
+                print(f"RTCM chunk sent: {len(data_chunk)} bytes")
+                # Print the current send frequency
+                end_time = time()
+                print("Message send frequency: {:.2f} Hz".format(1/(end_time - start_time)))
                 start_time = time()
-                # Read RTCM data
-                (data, parsed_data) = rtcm_reader.read()
-                if parsed_data:
-                    print(parsed_data)
-
-                if data:
-                    msg_len = 180  # Maximum length of RTCM message [bytes]
-                    # Check if the message is too large
-                    if len(data) > msg_len * 4:
-                        print(f"DGPS: Message too large {len(data)}")
-                        return
-
-                    # Determine the number of messages to send
-                    n_chunks = len(
-                        data) // msg_len if len(data) % msg_len == 0 else (len(data) // msg_len) + 1
-
-                    for chunk_id in range(0, n_chunks):
-                        # flags = 0
-                        # # Set the fragment flag if we're sending more than 1 packet
-                        # if n_chunks > 1:
-                        #     flags = 1
-                        # # Set the ID of this fragment
-                        # flags |= (chunk_id & 0x3) << 1
-                        # # Set an overall sequence number
-                        # flags |= (self.inject_seq_nr & 0x1f) << 3
-
-                        # # Get the chunk of data
-                        # amount = min(len(data) - chunk_id * msg_len, msg_len)
-                        # data_chunk = data[chunk_id * msg_len : chunk_id * msg_len + amount]
-
-                        flags, data_chunk = self.createMessageContent(
-                            data, chunk_id, n_chunks, msg_len)
-
-                        # Send the RTCM data via MAVLink
-                        self.sendMessageToRovers(flags=flags, data_chunk=data_chunk)
-                        # self.mavlink_connection.mav.gps_rtcm_data_send(flags, len(data_chunk), bytearray(data_chunk.ljust(180, b'\0'))
-                        #                                                )
-                    # Send a terminal 0-length message if we sent 2 or 3 exactly-full messages.
-                    if (n_chunks < 4) and (len(data) % msg_len == 0) and (len(data) > msg_len):
-                        flags = 1 | (n_chunks & 0x3) << 1 | (
-                            self.inject_seq_nr & 0x1f) << 3
-                        data_chunk = ""
-                        self.sendMessageToRovers(flags=flags, data_chunk=data_chunk)
-                        # self.mavlink_connection.mav.gps_rtcm_data_send(
-                        #     flags, 0, bytearray("".ljust(180, '\0')))
-
-                    # Update sequence number so the FCU can know we are done with this message
-                    self.inject_seq_nr += 1
-                    # Print the current send frequency
-                    end_time = time()
-                    print("Message send frequency: {:.2f} Hz".format(1/(end_time - start_time)))
-        except KeyboardInterrupt:
-            print("RTCM monitoring interrupted.")
-        except Exception as e:
-            print(f"Error monitoring RTCM: {e}")
 
     def close(self):
         """Close serial and UDP connections."""
         if self.serial_conn and self.serial_conn.is_open:
             self.serial_conn.close()
             print("Serial connection closed.")
-        if self.udp_socket:
-            self.udp_socket.close()
-            print("UDP socket closed.")
         # if self.mavlink_connection:
         #     self.mavlink_connection.close()
         #     print("MAVLink connection closed.")
@@ -228,15 +214,14 @@ def main(usb_port: str, baudrate: int, rovers_file: str) -> None:
         try:
             # Configure Survey-In with accuracy limit in mm and minimum duration in seconds
             rtk_base_receiver.configureSurveyIn(
-                acc_limit=20000, min_duration=60)
+                acc_limit=20000, min_duration=10)
             # Monitor Survey In progress
             rtk_base_receiver.monitorSurveyIn()
             # Transmit RTCM messages
             rtk_base_receiver.configureRtcmMessages()
             rtk_base_receiver.monitorRtcmOutput()
-        finally:
+        except KeyboardInterrupt:
             rtk_base_receiver.close()
 
-
 if __name__ == "__main__":
-    main(usb_port='COM4', baudrate=115200, rovers_file='rovers.yaml')
+    main(usb_port='COM24', baudrate=115200, rovers_file='rovers.yaml')
