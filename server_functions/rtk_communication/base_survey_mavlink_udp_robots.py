@@ -143,11 +143,10 @@ class RTKBaseReceiver:
 
         start_time = 0
         while True:
-            # Measuring time to avoid sending messages too fast
-            
-            # Read RTCM data
+            # Measuring time to study frequency
             if not start_time:
-                start_time = time()
+                start_time = time()            
+            # Read RTCM data
             (raw_data, parsed_data) = rtcm_reader.read()
             if raw_data:
                 msg_len = 180  # Maximum length of RTCM message [bytes]
