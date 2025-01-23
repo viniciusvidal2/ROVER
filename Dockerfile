@@ -119,11 +119,13 @@ COPY slam_packages /home/rover/src/slam_packages
 COPY vehicle_params /home/rover/src/vehicle_params
 COPY REST_API /home/rover/src/REST_API
 COPY FAST_LIO /home/rover/src/FAST_LIO
+COPY pan_and_tilt /home/rover/src/pan_and_tilt
 RUN chmod +x /home/rover/src/camera_transmitter/scripts/*.py
 RUN chmod +x /home/rover/src/obstacle_avoidance/scripts/*.py
 RUN chmod +x /home/rover/src/dwa_obstacle_avoidance/scripts/*.py
 RUN chmod +x /home/rover/src/dynamixel_controller/scripts/*.py
 RUN chmod +x /home/rover/src/REST_API/scripts/*.py
+RUN chmod +x /home/rover/src/pan_and_tilt/*.py
 RUN catkin build -j1
 
 RUN echo "source /home/rover/devel/setup.bash" >> /root/.bashrc
