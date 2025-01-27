@@ -19,6 +19,7 @@ class RTKBaseReceiver:
         self.usb_port = usb_port
         self.baudrate = baudrate
         self.gnss_connection = None
+        self.print_status_to_screen = True
         # Sequence number for RTCM messages
         self.inject_seq_nr = 0
         # Load rovers information
@@ -33,20 +34,19 @@ class RTKBaseReceiver:
 
         Args:
             message (str): The status message to send (max 50 chars).
-            severity (int): The severity level (default: 6 = informational).
+            severity (int): The severity level (default: 4 = warning).
         """
         for mavlink_connection in self.rovers_mavlink_connections:
-            mavlink_connection.mav.statustext_send(severity, message[:50])
+            mavlink_connection.mav.statustext_send(severity=severity, text=message[:50].encode())
 
-    def printAndSend(self, message: str, severity: int = 6, do_printing: bool = False) -> None:
+    def printAndSend(self, message: str, severity: int = 6) -> None:
         """Print a message and send it as a STATUSTEXT.
 
         Args:
             message (str): The message to print and send.
             severity (int): The severity level for the STATUSTEXT message.
-            do_printing (bool): Print the message or not
         """
-        if do_printing:
+        if self.print_status_to_screen:
             print(message)
         self.sendStatusText(message, severity)
 
@@ -94,7 +94,7 @@ class RTKBaseReceiver:
                 # Monitoring NAV-SVIN (Survey-In progress)
                 if parsed_data.identity == "NAV-SVIN":
                     message = f"Duration: {parsed_data.dur} s, prec: {parsed_data.meanAcc / 10000:.3f} m, done: {'Y' if parsed_data.active == 0 else 'N'}"
-                    self.printAndSend(message, do_printing=False)
+                    self.printAndSend(message)
                     if parsed_data.active == 0:  # Survey-In sucessfully completed
                         self.printAndSend("Survey in finished successfuly!")
                         break
