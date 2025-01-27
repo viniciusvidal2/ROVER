@@ -229,4 +229,4 @@ def main(usb_port: str, baudrate: int, rovers_file: str) -> None:
 
 
 if __name__ == "__main__":
-    main(usb_port='/dev/ttyACM0', baudrate=115200, rovers_file='rovers.yaml')
+    main(usb_port='/dev/ttyACM0', baudrate=115200, rovers_file='/home/mig/ROVER/server_functions/rtk_communication/rovers.yaml')
