@@ -1,0 +1,4 @@
+PyYAML==6.0.2
+Adafruit-Blinka @ git+https://github.com/adafruit/Adafruit_Blinka.git@bbf328e8509495d80da5d1dac66ab862ef360bd0
+adafruit-circuitpython-bmp280==3.3.6
+adafruit-circuitpython-dht==4.0.7

@@ -1,0 +1,14 @@
+bmp280:
+  - name: electronics
+    cs_pin: D5
+  - name: back_right
+    cs_pin: D6
+  # - name: back_left
+  #   cs_pin: D3
+  # - name: front_right
+  #   cs_pin: D4
+  # - name: front_left
+  #   cs_pin: D5
+dht22:
+  - name: electronics
+    pin: D26
