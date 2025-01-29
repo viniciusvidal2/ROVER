@@ -56,9 +56,8 @@
     </group>
 
     <!-- Temperature sensors -->
-    <include file="$(find temperature_sensors)/launch/temperature_sensors.launch"/>
     <rosparam command="load" file="$(find temperature_sensors)/config/sensors.yaml"/>
-    <node name="temperature_sensors" pkg="temperature_sensors" type="temperature_sensors" output="screen"/>
+    <node name="temperature_sensors" pkg="temperature_sensors" type="temperature_sensors.py" output="screen"/>
 
     <!-- Preprocess Livox scans -->
     <rosparam command="load" file="$(find ptc_scan_processing)/config/params.yaml"/>
