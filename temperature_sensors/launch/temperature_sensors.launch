@@ -1,0 +1,3 @@
+<launch>
+    <node pkg="temperature_sensors" type="temperature_sensors.py" name="temperature_sensors" output="screen"/>
+</launch>

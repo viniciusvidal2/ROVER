@@ -81,6 +81,12 @@ RUN apt-get update && apt-get install -y \
 RUN pip3 install opencv-python
 RUN export PYTHONPATH=/usr/local/lib/python3.8/dist-packages:$PYTHONPATH
 
+# Dependencies for temperature sensors
+RUN pip3 install \
+    Adafruit-Blinka @ git+https://github.com/adafruit/Adafruit_Blinka.git@bbf328e8509495d80da5d1dac66ab862ef360bd0 \
+    adafruit-circuitpython-bmp280==3.3.6 \
+    adafruit-circuitpython-dht==4.0.7
+
 # Install geographic libs for mavros dependencies
 WORKDIR /home/rover/
 COPY ./install_geographiclib_datasets.sh /home/rover/
@@ -113,6 +119,7 @@ COPY livox_ros_driver2 /home/rover/src/livox_ros_driver2
 COPY obstacle_avoidance /home/rover/src/obstacle_avoidance
 COPY dwa_obstacle_avoidance /home/rover/src/dwa_obstacle_avoidance
 COPY camera_transmitter /home/rover/src/camera_transmitter
+COPY temperature_sensors /home/rover/src/temperature_sensors
 COPY ptc_scan_processing /home/rover/src/ptc_scan_processing
 COPY dynamixel_controller /home/rover/src/dynamixel_controller
 COPY slam_packages /home/rover/src/slam_packages
@@ -120,6 +127,7 @@ COPY vehicle_params /home/rover/src/vehicle_params
 COPY REST_API /home/rover/src/REST_API
 COPY FAST_LIO /home/rover/src/FAST_LIO
 RUN chmod +x /home/rover/src/camera_transmitter/scripts/*.py
+RUN chmod +x /home/rover/src/temperature_sensors/scripts/*.py
 RUN chmod +x /home/rover/src/obstacle_avoidance/scripts/*.py
 RUN chmod +x /home/rover/src/dwa_obstacle_avoidance/scripts/*.py
 RUN chmod +x /home/rover/src/dynamixel_controller/scripts/*.py
