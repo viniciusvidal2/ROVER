@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import board
 from digitalio import DigitalInOut, Direction
 import adafruit_dht
@@ -40,8 +42,8 @@ def initialize_sensors():
                     Float32,
                     queue_size=1,
                 )
-            except:
-                print(f"Not found {sensor['name']}")
+            except Exception as e:
+                print(f"Not initialized {sensor['name']} {e}")
 
         for sensor in sensors_list["dht22"]:
             try:
@@ -58,8 +60,8 @@ def initialize_sensors():
                     f'/rover_1/dht22/{sensor["name"]}/humidity', Float32, queue_size=1
                 )
 
-            except:
-                print(f"Not found {sensor['name']}")
+            except Exception as e:
+                print(f"Not initiliazed {sensor['name']} {e}")
 
 
 def read_sensors():
@@ -74,16 +76,16 @@ def read_sensors():
 
                 dht22_temperature_publishers[name].publish(Float32(temperature))
                 dht22_humidity_publishers[name].publish(Float32(humidity))
-            except:
-                print(f"Not found DHT22 {name}")
+            except Exception as e:
+                print(f"Not found DHT22 {name} {e}")
 
         for name, bmp280 in bmp280_dict.items():
             try:
                 temperature = bmp280.temperature
                 print(f"{name} - Temperature: {temperature:.2f} C")
                 bmp280_temperature_publishers[name].publish(Float32(temperature))
-            except:
-                print(f"Not found BMP280 {name}")
+            except Exception as e:
+                print(f"Not found BMP280 {name} {e}")
 
         rospy.sleep(2)
 

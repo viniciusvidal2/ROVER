@@ -83,7 +83,7 @@ RUN export PYTHONPATH=/usr/local/lib/python3.8/dist-packages:$PYTHONPATH
 
 # Dependencies for temperature sensors
 RUN pip3 install \
-    Adafruit-Blinka @ git+https://github.com/adafruit/Adafruit_Blinka.git@bbf328e8509495d80da5d1dac66ab862ef360bd0 \
+    Adafruit-Blinka@git+https://github.com/adafruit/Adafruit_Blinka.git@bbf328e8509495d80da5d1dac66ab862ef360bd0 \
     adafruit-circuitpython-bmp280==3.3.6 \
     adafruit-circuitpython-dht==4.0.7
 
