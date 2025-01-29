@@ -26,6 +26,9 @@ global_gps_topic = roslibpy.Topic(
     ros, '/mavros/global_position/global', 'sensor_msgs/NavSatFix')
 global_compass_topic = roslibpy.Topic(
     ros, '/mavros/global_position/compass_hdg', 'std_msgs/Float64')
+global_status_text_topic = roslibpy.Topic(
+    ros, '/mavros/statustext/send', 'mavros_msgs/Statustext')
+
 
 # Init Flask app
 app = Flask(__name__)
@@ -85,6 +88,17 @@ def stop_localization():
         return jsonify({"status": 0, "message": "Localization node stopped successfully"})
     except Exception as e:
         return jsonify({"status": 1, "error": str(e)}), 500
+
+
+@app.route('/status_text', methods=['POST'])
+def publish_status_text():
+    try:
+        data = request.get_json()
+        global_status_text_topic.publish(roslibpy.Message(
+            {'severity': data['severity'], 'text': data['text']}))
+        return jsonify({"status": 1, "message": "Status text published successfully"})
+    except Exception as e:
+        return jsonify({"status": 0, "error": str(e)}), 500
 
 # endregion
 ############################################################################

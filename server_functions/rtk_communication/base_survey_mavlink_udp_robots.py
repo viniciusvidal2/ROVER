@@ -5,6 +5,8 @@ from pyrtcm import RTCMReader
 from time import time
 import yaml
 from typing import Tuple
+import requests
+
 
 class RTKBaseReceiver:
     def __init__(self, usb_port: str, baudrate: int, rovers_file: str) -> None:
@@ -28,7 +30,9 @@ class RTKBaseReceiver:
             # List of mavlink connections to rovers
             self.rovers_mavlink_connections = [mavutil.mavlink_connection(
                 f'udpout:{rover["ip"]}:{rover["port"]}', dialect='common') for rover in rovers_list["rovers"]]
-            
+        # The endpoint for status text messages in the REST api
+        self.rovers_rest_endpoints = [f"http://{rover['ip']}:5000" for rover in rovers_list["rovers"]]
+
     def sendStatusText(self, message: str, severity: int = 4) -> None:
         """Send a STATUSTEXT message to all MAVLink connections.
 
@@ -36,10 +40,20 @@ class RTKBaseReceiver:
             message (str): The status message to send (max 50 chars).
             severity (int): The severity level (default: 4 = warning).
         """
-        for mavlink_connection in self.rovers_mavlink_connections:
-            mavlink_connection.mav.statustext_send(severity=severity, text=message[:50].encode())
+        for endpoint in self.rovers_rest_endpoints:
+            # The status text post endpoint
+            status_text_endpoint = f"{endpoint}/status_text"
+            data = {"text": message[:50], "severity": severity}
+            try:
+                response = requests.post(status_text_endpoint, json=data)
+                if response.status_code == 200:
+                    print(f"Success: {response.json()}")
+                else:
+                    print(f"Failed: {response.status_code}, {response.text}")
+            except Exception as e:
+                print(f"Error while making request: {e}")
 
-    def printAndSend(self, message: str, severity: int = 6) -> None:
+    def printAndSend(self, message: str, severity: int = mavutil.mavlink.MAV_SEVERITY_WARNING) -> None:
         """Print a message and send it as a STATUSTEXT.
 
         Args:
@@ -47,8 +61,8 @@ class RTKBaseReceiver:
             severity (int): The severity level for the STATUSTEXT message.
         """
         if self.print_status_to_screen:
-            print(message)
-        self.sendStatusText(message, severity)
+            print(f"LOCAL DEBUG: {message}")
+        self.sendStatusText(message=message, severity=severity)
 
     def connectToReceiver(self) -> None:
         """Connect to GNSS receiver and prepare UDP socket."""
@@ -82,7 +96,8 @@ class RTKBaseReceiver:
     def monitorSurveyIn(self) -> None:
         """Monitor Survey-In progress and print it."""
         if not self.gnss_connection:
-            self.printAndSend("Connection was not established, quitting survey in monitoring.")
+            self.printAndSend(
+                "Connection was not established, quitting survey in monitoring.")
             return
 
         self.printAndSend("Monitoring survey in progress...")
@@ -138,7 +153,8 @@ class RTKBaseReceiver:
         flags |= (self.inject_seq_nr & 0x1f) << 3
         # Prepare the data chunk
         amount = min(len(msg_data) - chunk_number * msg_len, msg_len)
-        data_chunk = msg_data[chunk_number *msg_len: chunk_number * msg_len + amount]
+        data_chunk = msg_data[chunk_number *
+                              msg_len: chunk_number * msg_len + amount]
 
         return (flags, data_chunk)
 
@@ -162,18 +178,20 @@ class RTKBaseReceiver:
         while True:
             # Measuring time to study frequency
             if not start_time:
-                start_time = time()            
+                start_time = time()
             # Read RTCM data
             (raw_data, parsed_data) = rtcm_reader.read()
             if raw_data:
                 msg_len = 180  # Maximum length of RTCM message [bytes]
                 # Check if the message is too large
                 if len(raw_data) > msg_len * 4:
-                    self.printAndSend(f"DGPS: Message too large {len(raw_data)}")
+                    self.printAndSend(
+                        f"DGPS: Message too large {len(raw_data)}")
                     return
 
                 # Determine the number of messages to send and send each chunk
-                n_chunks = len(raw_data) // msg_len if len(raw_data) % msg_len == 0 else (len(raw_data) // msg_len) + 1
+                n_chunks = len(
+                    raw_data) // msg_len if len(raw_data) % msg_len == 0 else (len(raw_data) // msg_len) + 1
                 for chunk_id in range(0, n_chunks):
                     # Send the RTCM data for the rovers via mavlink connections
                     flags, data_chunk = self.createMessageContent(
@@ -193,7 +211,8 @@ class RTKBaseReceiver:
             if parsed_data.identity == "1230":
                 end_time = time()
                 # Print the current send frequency
-                self.printAndSend(f"Message send frequency: {1/(end_time - start_time):.2f} Hz")
+                self.printAndSend(
+                    f"Message send frequency: {1/(end_time - start_time):.2f} Hz")
                 start_time = 0
 
     def close(self) -> None:
@@ -218,7 +237,8 @@ def main(usb_port: str, baudrate: int, rovers_file: str) -> None:
     if rtk_base_receiver.connectToReceiver():
         try:
             # Configure Survey-In with accuracy limit in mm and minimum duration in seconds
-            rtk_base_receiver.configureSurveyIn(acc_limit=20000, min_duration=10)
+            rtk_base_receiver.configureSurveyIn(
+                acc_limit=20000, min_duration=10)
             # Monitor Survey In progress
             rtk_base_receiver.monitorSurveyIn()
             # Transmit RTCM messages
@@ -229,4 +249,5 @@ def main(usb_port: str, baudrate: int, rovers_file: str) -> None:
 
 
 if __name__ == "__main__":
-    main(usb_port='/dev/ttyACM0', baudrate=115200, rovers_file='/home/mig/ROVER/server_functions/rtk_communication/rovers.yaml')
+    main(usb_port='/dev/ttyACM0', baudrate=115200,
+         rovers_file='server_functions/rtk_communication/rovers.yaml')
