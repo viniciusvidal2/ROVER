@@ -93,6 +93,7 @@ def stop_localization():
 @app.route('/status_text', methods=['POST'])
 def publish_status_text():
     try:
+        # Sending status text with mavros for the rover to be relayed to the radio controller
         data = request.get_json()
         global_status_text_topic.publish(roslibpy.Message(
             {'severity': data['severity'], 'text': data['text']}))
