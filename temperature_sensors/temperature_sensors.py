@@ -4,6 +4,9 @@ from digitalio import DigitalInOut, Direction
 import adafruit_dht
 import adafruit_bmp280
 import yaml
+import requests
+
+endpoint = '"http://localhost:5000/temperatures/post'
 
 dht22_dict = {}
 
@@ -30,11 +33,14 @@ with open('sensors.yaml', 'r') as file:
             print(f"Not found {sensor['name']}")
 
 while True:
+    sensors_data = {}
+    
     for name, dht22 in dht22_dict.items():
         try:
             temperature = dht22.temperature
             humidity = dht22.humidity
             print(f"{name} - Temperature: {temperature:.2f} - Humididty {humidity:.2f} %")
+            sensors_data[name] = {"temperature": temperature, "humidity": humidity}
         except:
             print(f"Not found DHT22 {name}")
 
@@ -42,7 +48,14 @@ while True:
         try:
             temperature = bmp280.temperature
             print(f"{name} - Temperature: {temperature:.2f} C")
+            sensors_data[name] = {"temperature": temperature}
         except:
             print(f"Not found BMP280 {name}")
+            
+    try:
+        if sensors_data:
+            _ = requests.post(endpoint, json=sensors_data)
+    except Exception as e:
+        print(f"Error while making request: {e}")
 
     time.sleep(2)

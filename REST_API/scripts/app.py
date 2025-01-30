@@ -20,6 +20,7 @@ ros = roslibpy.Ros(host=global_ros_ip, port=global_ros_port)
 global_image_camera = None
 global_gps_coordinates = {'latitude': -1, 'longitude': -1}
 global_compass_heading = -1  # -1 means no data [degrees 0-360]
+global_temperatures = dict()
 global_image_topic = roslibpy.Topic(
     ros, '/image_user/compressed', 'sensor_msgs/CompressedImage')
 global_gps_topic = roslibpy.Topic(
@@ -86,6 +87,18 @@ def stop_localization():
     except Exception as e:
         return jsonify({"status": 1, "error": str(e)}), 500
 
+
+@app.route('/temperatures/post', methods=['POST'])
+def post_temperatures():
+    try:
+        global global_temperatures
+        data = request.get_json()
+        if data:
+            global_temperatures = data
+        return jsonify({"status": 1, "message": "Temperatures get successfully"})
+    except Exception as e:
+        return jsonify({"status": 0, "error": str(e)}), 500
+
 # endregion
 ############################################################################
 # region API GETs
@@ -110,6 +123,12 @@ def get_gps_location_orientation() -> dict:
                     'latitude': global_gps_coordinates['latitude'],
                     'longitude': global_gps_coordinates['longitude'],
                     'compass': global_compass_heading})
+
+
+@app.route('/temperatures/get', methods=['GET'])
+def get_temperatures() -> dict:
+    global global_temperatures
+    return jsonify(global_temperatures)
 
 # endregion
 ############################################################################
