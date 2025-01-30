@@ -49,7 +49,7 @@
         <!-- <include file="$(find camera_transmitter)/launch/insta360.launch"/> -->
 
         <!-- Dynamixel controllers -->
-        <include file="$(find dynamixel_controller)/launch/dynamixel_controller.launch"/>
+        <!-- <include file="$(find dynamixel_controller)/launch/dynamixel_controller.launch"/> -->
 
         <!-- ROSBridge for communication with web interface -->
         <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch"/>
@@ -87,6 +87,6 @@
         <param name="corridor_width" value="$(arg corridor_width)"/>
         <param name="turn_rate" value="$(arg turn_rate)"/>
     </node> -->
-    <node pkg="dwa_obstacle_avoidance" type="obstacle_avoidance_fuzzy.py" name="obstacle_avoidance_fuzzy"/>
+    <!-- <node pkg="dwa_obstacle_avoidance" type="obstacle_avoidance_fuzzy.py" name="obstacle_avoidance_fuzzy"/> -->
 
 </launch>
