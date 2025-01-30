@@ -55,10 +55,6 @@
         <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch"/>
     </group>
 
-    <!-- Temperature sensors -->
-    <rosparam command="load" file="$(find temperature_sensors)/config/sensors.yaml"/>
-    <node name="temperature_sensors" pkg="temperature_sensors" type="temperature_sensors.py" output="screen"/>
-
     <!-- Preprocess Livox scans -->
     <rosparam command="load" file="$(find ptc_scan_processing)/config/params.yaml"/>
     <node name="preprocess_lidar_scan_node" pkg="ptc_scan_processing" type="preprocess_lidar_scan_node" output="screen"/>

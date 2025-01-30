@@ -1,4 +1,0 @@
-<launch>
-    <rosparam command="load" file="$(find temperature_sensors)/config/sensors.yaml"/>
-    <node pkg="temperature_sensors" type="temperature_sensors.py" name="temperature_sensors" output="screen"/>
-</launch>
