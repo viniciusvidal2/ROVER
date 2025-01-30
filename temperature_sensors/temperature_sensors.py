@@ -7,7 +7,7 @@ import yaml
 import requests
 
 
-def main(debug: bool = False):
+def main(debug: bool = False) -> None:
     """Reads the temperature and humidity from the sensors and sends the data to the rest api.
 
     Args:
