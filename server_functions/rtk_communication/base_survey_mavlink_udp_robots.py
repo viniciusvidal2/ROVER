@@ -21,7 +21,7 @@ class RTKBaseReceiver:
         self.usb_port = usb_port
         self.baudrate = baudrate
         self.gnss_connection = None
-        self.print_status_to_screen = True
+        self.print_status_to_screen = False
         # Sequence number for RTCM messages
         self.inject_seq_nr = 0
         # Load rovers information
@@ -31,7 +31,8 @@ class RTKBaseReceiver:
             self.rovers_mavlink_connections = [mavutil.mavlink_connection(
                 f'udpout:{rover["ip"]}:{rover["port"]}', dialect='common') for rover in rovers_list["rovers"]]
         # The endpoint for status text messages in the REST api
-        self.rovers_rest_endpoints = [f"http://{rover['ip']}:5000" for rover in rovers_list["rovers"]]
+        self.rovers_rest_endpoints = [
+            f"http://{rover['ip']}:5000" for rover in rovers_list["rovers"]]
 
     def sendStatusText(self, message: str, severity: int = 4) -> None:
         """Send a STATUSTEXT message to all MAVLink connections.
@@ -45,11 +46,7 @@ class RTKBaseReceiver:
             status_text_endpoint = f"{endpoint}/status_text"
             data = {"text": message[:50], "severity": severity}
             try:
-                response = requests.post(status_text_endpoint, json=data)
-                if response.status_code == 200:
-                    print(f"Success: {response.json()}")
-                else:
-                    print(f"Failed: {response.status_code}, {response.text}")
+                _ = requests.post(status_text_endpoint, json=data)
             except Exception as e:
                 print(f"Error while making request: {e}")
 
