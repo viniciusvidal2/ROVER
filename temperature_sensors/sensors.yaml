@@ -10,5 +10,5 @@ bmp280:
   # - name: front_left
   #   cs_pin: D5
 dht22:
-  - name: electronics
+  - name: electronics1
     pin: D26

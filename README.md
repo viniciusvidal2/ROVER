@@ -49,6 +49,16 @@ sudo reboot
 
 ### Building and running the image
 
+We need to create a virtual environment in the temperature_sensors folder to install the required libraries for reading the BMP280 and DHT22 sensors using the following commands:
+
+```bash
+cd home/rover/ROVER/temperature_sensors
+python -m venv env
+source env/bin/activate
+pip install -r requirements.txt
+deactivate
+```
+
 We need not only to build the docker image inside the embedded board, but to setup its system to run everything at bootup. To do that, we must create a service with the proper dependencies
 - Create a file at /etc/systemd/system/rover_bringup.service with the following command:
 ```bash
@@ -106,7 +116,7 @@ docker exec -it rover_container bash
 ```
 
 ### Embedded (RPI or Jetson boards)
-You should not neet to run the container by hand in the embedded board, but you can do it two ways:
+You should not need to run the container by hand in the embedded board, but you can do it two ways:
 - Calling the file that is responsible for starting the entire system at bootup:
 ```bash
 ./home/YOUR_BOARD_USERNAME/ROVER/init_board.sh
