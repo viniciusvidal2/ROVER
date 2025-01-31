@@ -104,7 +104,7 @@ RUN pip install utm datetime
 RUN pip install scikit-fuzzy networkx
 
 # Install REST API dependencies
-RUN pip install flask flask_cors roslibpy
+RUN pip install flask flask_cors roslibpy paho-mqtt
 RUN apt-get install -y ros-noetic-rosbridge-suite
 
 # Copy the packages to inside the docker and compile the ROS ones
