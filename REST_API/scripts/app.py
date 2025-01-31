@@ -6,10 +6,21 @@ from sensor_msgs.msg import CompressedImage, NavSatFix
 from std_msgs.msg import Float64
 from time import sleep
 import subprocess
+import paho.mqtt.client as mqtt
+from threading import Thread
+from time import sleep, time
+import json
 
 ############################################################################
 # region Declarations and Definitions
 ############################################################################
+
+# Connection MQTT to Dashboard
+global_mqtt_client = None
+MQTT_BROKER = "192.168.0.108"
+MQTT_PORT = 1883
+MQTT_TOPIC_TELEMETRY = "substations/SUB001/rovers/Rover-Argo-N-0/telemetry" # SUB001 e Rover-Argo-N-0 vão ser variáveis
+TELEMETRY_INTERVAL = 2
 
 # Connection to ROS
 global_ros_ip = 'localhost'
@@ -130,6 +141,54 @@ def get_temperatures() -> dict:
     global global_temperatures
     return jsonify(global_temperatures)
 
+############################################################################
+# region MQTT Functions
+############################################################################
+
+def on_mqtt_connect(client, userdata, flags, rc):
+    print(f'Conectado ao broker MQTT com código: {rc}')
+
+
+def init_mqtt_client():
+    global global_mqtt_client
+    global_mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+    global_mqtt_client.on_connect = on_mqtt_connect
+    
+    try:
+        global_mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 0)
+        global_mqtt_client.loop_start()
+    except Exception as e:
+        print(f'Erro ao conectar ao broker MQTT: {e}')
+
+
+def publish_data():
+    global global_mqtt_client, global_gps_coordinates, global_temperatures
+    
+    last_tele_publish = 0
+    
+    while True:
+        current_time = time()
+        
+        # Publicar GPS a cada 1 segundo
+        if current_time - last_tele_publish >= TELEMETRY_INTERVAL:
+            try:
+                message = {
+                    "battery": 10,
+                    "temperature": 40.2,
+                    "speed": 12.8,
+                    "location": {
+                        "lat": -23.5505,
+                        "lng": -46.6333
+                    },
+                    "status": "active"
+                }
+                global_mqtt_client.publish(MQTT_TOPIC_TELEMETRY, json.dumps(message))
+                last_tele_publish = current_time
+                print("Published telemetry data")
+            except Exception as e:
+                print(f'Erro ao publicar GPS: {e}')
+        sleep(2)
+
 # endregion
 ############################################################################
 # region ROS data callbacks
@@ -192,11 +251,19 @@ if __name__ == '__main__':
     guarantee_ros_connection()
     # Init all ROS subscribers
     init_subscribers()
+    # Init MQTT client
+    init_mqtt_client()
+    # Start MQTT publishing thread
+    mqtt_thread = Thread(target=publish_data, daemon=True)
+    mqtt_thread.start()
     # Run the app to serve the API
     app.run(host='0.0.0.0', port=5000)
 
+
     # Disconnect from ROS
     ros.close()
-
+    # Disconnect from MQTT
+    global_mqtt_client.loop_stop()
+    global_mqtt_client.disconnect()
 
 # endregion
