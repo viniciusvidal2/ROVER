@@ -101,17 +101,17 @@ sudo nano /etc/systemd/system/network_connection.service
 ```
 [Unit]
 Description=Force network connection at startup
-After=graphical.target
-Wants=graphical.target
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
 ExecStart=/home/rover/ROVER/connect_network.sh
-Restart=on-failure
+Restart=always
 RestartSec=10
 
 [Install]
-WantedBy=graphical.target
+WantedBy=multi-user.target
 ```
 
 - Enable and start the service with the commands:
