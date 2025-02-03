@@ -18,13 +18,13 @@ This image should contain the necessary dependencies to use ROS packages and Ard
 
 NOTE: Bear in mind the tag you are using when building the image. If for some reason you change it, make sure you do in all the following commands.
 
-## Embedded board setup
+## Raspberry PI 5 board setup
 First of all, the embedded system expects some sensors and actuators to be connected for correct bootup. The absense of any of those could cause startup to crash. Currently we are using:
-- USB camera
-- Dynamixel driver and motors
 - Livox mid360
+- Pixhawk board
+
 Make sure they are properly connected and configured. In the case of livox sensor, make sure the cable network has the proper local network manual IP address (192.168.1.50).
-When creating the embedded board image, make sure your user name is "rover".
+**When creating the embedded board image, make sure your user name is "rover".**
 
 ### Installing docker engine on RPI5
 The following commands will install the Docker engine with a proper version for raspberry PI 5:
@@ -47,9 +47,23 @@ sudo usermod -aG docker $USER
 sudo reboot
 ```
 
-### Building and running the image
+### Enabling interfaces and preparing directories
+You should go into Raspberry PI configurations through the GUI interface, in the interfaces tab. Enable SPI, I2C and SSH.
 
-We need not only to build the docker image inside the embedded board, but to setup its system to run everything at bootup. To do that, we must create a service with the proper dependencies
+You must also enable the system monitor host. Please add the following lines into the ~/.bashrc file:
+```
+export DISLAY=:0
+xhost +
+```
+
+To finish up, you must create two folders that will contain the debug bags and the output maps, which will be shared with the docker container:
+```
+mkdir /home/rover/maps
+mkdir /home/rover/bags_debug
+```
+
+### Preparing the startup services
+We need not only to build the docker image inside the embedded board, but to setup its system to run everything at bootup. To do that, we must create services with the proper dependencies
 - Create a file at /etc/systemd/system/rover_bringup.service with the following command:
 ```bash
 sudo nano /etc/systemd/system/rover_bringup.service
@@ -78,20 +92,41 @@ sudo systemctl daemon-reload
 sudo systemctl enable rover_bringup.service
 sudo systemctl start rover_bringup.service
 ```
-
-You must also enable the system monitor host. Please add the following lines into the ~/.bashrc file:
-```
-export DISLAY=:0
-xhost +
+- Create a file at /etc/systemd/system/network_connection.service with the following command:
+```bash
+sudo nano /etc/systemd/system/network_connection.service
 ```
 
-To finish up, you must create two folders that will contain the debug bags and the output maps, which will be shared with the docker container:
+- Add the following content to this file:
 ```
-mkdir ~/maps
-mkdir ~/bags_debug
+[Unit]
+Description=Force network connection at startup
+After=graphical.target
+Wants=graphical.target
+
+[Service]
+Type=simple
+ExecStart=/home/rover/ROVER/connect_network.sh
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=graphical.target
 ```
 
-You should see the camera prompting in the monitor/radio transmitter next time you bootup. All other sensors should work just fine as well
+- Enable and start the service with the commands:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable network_connection.service
+sudo systemctl start network_connection.service
+```
+
+### Building the image inside the board
+Navigate to ROVER directory and run the same build command. It can take up to an hour depending on processor and network conditions.
+```bash
+cd /home/rover/ROVER
+docker build -t rover_image:0.1 .
+```
 
 ## Running the container
 ### Desktop
@@ -105,11 +140,11 @@ This will not log you inside to container. In case you need to login inside the 
 docker exec -it rover_container bash
 ```
 
-### Embedded (RPI or Jetson boards)
+### Raspberry PI 5
 You should not neet to run the container by hand in the embedded board, but you can do it two ways:
 - Calling the file that is responsible for starting the entire system at bootup:
 ```bash
-./home/YOUR_BOARD_USERNAME/ROVER/init_board.sh
+./home/rover/ROVER/init_board.sh
 ```
 
 - Running the docker container passing all the necessary info (provided that you have all the sensors connected. If for some reason you don't, remove the config that relates to the missing sensor):
