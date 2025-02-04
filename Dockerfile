@@ -10,7 +10,15 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 # Install necessary packages and dependencies
 RUN apt-get update && apt-get install -y \
     tzdata curl lsb-release gnupg2 build-essential git nano \
+    mosquitto mosquitto-clients \
     && rm -rf /var/lib/apt/lists/*
+
+# Configure Mosquitto
+RUN mkdir -p /mosquitto/config/ /mosquitto/data/ /mosquitto/log/
+COPY mosquitto.conf /mosquitto/config/mosquitto.conf
+
+# Expose Mosquitto ports
+EXPOSE 1883 9001
 
 # Source ros noetic setup.bash
 RUN /bin/bash -c "source /opt/ros/noetic/setup.bash"
