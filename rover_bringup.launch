@@ -20,7 +20,7 @@
     <arg if="$(arg SITL)" name="gcs_url" default="tcp://127.0.0.1:5763"/>
     
     <!-- Launch Mavros related params and node -->
-	<include file="$(find mavros)/launch/node.launch">
+    <include file="$(find mavros)/launch/node.launch">
         <arg name="pluginlists_yaml" value="$(find vehicle_params)/config/apm_pluginlists.yaml" />
         <arg name="config_yaml" value="$(find vehicle_params)/config/apm_config.yaml" />
         <arg name="fcu_url" value="$(arg fcu_url)" />
@@ -86,7 +86,7 @@
         <param name="max_dist" value="$(arg max_dist)"/>
         <param name="corridor_width" value="$(arg corridor_width)"/>
         <param name="turn_rate" value="$(arg turn_rate)"/>
-    </node> -->
+    </node>
     <!-- <node pkg="dwa_obstacle_avoidance" type="obstacle_avoidance_fuzzy.py" name="obstacle_avoidance_fuzzy"/> -->
 
 </launch>

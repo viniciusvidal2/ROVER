@@ -10,6 +10,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 # Install necessary packages and dependencies
 RUN apt-get update && apt-get install -y \
     tzdata curl lsb-release gnupg2 build-essential git nano \
+    mosquitto mosquitto-clients \
     && rm -rf /var/lib/apt/lists/*
 
 # Source ros noetic setup.bash
@@ -50,7 +51,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Install pip dependencies
 RUN pip install --no-cache-dir future psutil dronekit opencv-python
-RUN pip install --no-cache-dir utm datetime scikit-fuzzy networkx flask flask_cors roslibpy
+RUN pip install --no-cache-dir utm datetime scikit-fuzzy networkx flask flask_cors roslibpy paho-mqtt
 
 # Configure Catkin and install MAVROS dependencies
 WORKDIR /home/rover/
@@ -78,7 +79,19 @@ COPY DynamixelSDK /home/rover/src/DynamixelSDK
 WORKDIR /home/rover/src/DynamixelSDK/python
 RUN python3 setup.py install
 
-# Copy the packages to inside the docker
+# Install geographic dependencies
+RUN pip install utm datetime
+# Install other dependencies
+RUN pip install scikit-fuzzy networkx
+
+# Configure Mosquitto
+RUN mkdir -p /mosquitto/config/ /mosquitto/data/ /mosquitto/log/
+COPY mosquitto.conf /mosquitto/config/mosquitto.conf
+
+# Expose Mosquitto ports
+EXPOSE 1883 9001
+
+# Copy the packages to inside the docker and compile the ROS ones
 WORKDIR /home/rover/
 COPY . /home/rover/src/
 # Make sure python scripts are executable
