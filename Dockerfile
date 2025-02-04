@@ -13,13 +13,6 @@ RUN apt-get update && apt-get install -y \
     mosquitto mosquitto-clients \
     && rm -rf /var/lib/apt/lists/*
 
-# Configure Mosquitto
-RUN mkdir -p /mosquitto/config/ /mosquitto/data/ /mosquitto/log/
-COPY mosquitto.conf /mosquitto/config/mosquitto.conf
-
-# Expose Mosquitto ports
-EXPOSE 1883 9001
-
 # Source ros noetic setup.bash
 RUN /bin/bash -c "source /opt/ros/noetic/setup.bash"
 RUN echo "source /opt/ros/noetic/setup.bash" >> /root/.bashrc
@@ -110,6 +103,13 @@ RUN python3 setup.py install
 RUN pip install utm datetime
 # Install other dependencies
 RUN pip install scikit-fuzzy networkx
+
+# Configure Mosquitto
+RUN mkdir -p /mosquitto/config/ /mosquitto/data/ /mosquitto/log/
+COPY mosquitto.conf /mosquitto/config/mosquitto.conf
+
+# Expose Mosquitto ports
+EXPOSE 1883 9001
 
 # Install REST API dependencies
 RUN pip install flask flask_cors roslibpy paho-mqtt

@@ -17,7 +17,7 @@ import json
 
 # Connection MQTT to Dashboard
 global_mqtt_client = None
-MQTT_BROKER = "192.168.10.253"
+MQTT_BROKER = "localhost"
 MQTT_PORT = 1883
 MQTT_TOPIC_TELEMETRY = "substations/SUB001/rovers/Rover-Argo-N-0/telemetry"  # SUB001 e Rover-Argo-N-0 vão ser variáveis
 TELEMETRY_INTERVAL = 2
