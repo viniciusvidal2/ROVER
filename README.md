@@ -121,6 +121,17 @@ sudo systemctl enable network_connection.service
 sudo systemctl start network_connection.service
 ```
 
+### Creating sensors reading virtual environment
+We need to create a virtual environment in the temperature_sensors folder to install the required libraries for reading the BMP280 and DHT22 sensors using the following commands:
+
+```bash
+cd home/rover/ROVER/temperature_sensors
+python -m venv env
+source env/bin/activate
+pip install -r requirements.txt
+deactivate
+```
+
 ### Building the image inside the board
 Navigate to ROVER directory and run the same build command. It can take up to an hour depending on processor and network conditions.
 ```bash
@@ -141,7 +152,7 @@ docker exec -it rover_container bash
 ```
 
 ### Raspberry PI 5
-You should not neet to run the container by hand in the embedded board, but you can do it two ways:
+You should not need to run the container by hand in the embedded board, but you can do it two ways:
 - Calling the file that is responsible for starting the entire system at bootup:
 ```bash
 ./home/rover/ROVER/init_board.sh
