@@ -99,7 +99,8 @@ RUN chmod +x /home/rover/src/camera_transmitter/scripts/*.py \
     /home/rover/src/obstacle_avoidance/scripts/*.py \
     /home/rover/src/dwa_obstacle_avoidance/scripts/*.py \
     /home/rover/src/dynamixel_controller/scripts/*.py \
-    /home/rover/src/REST_API/scripts/*.py
+    /home/rover/src/REST_API/scripts/*.py \
+    /home/rover/src/pan_and_tilt/*.py
 # Build the packages
 RUN catkin build -j2
 
