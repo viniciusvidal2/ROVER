@@ -3,7 +3,7 @@ import time
 
 servo_bus = ServoBus('COM3')
 
-# Move servo with ID 1 to 90 degrees in 1.0 seconds
+# Get the default angle values
 pan_angle_default = servo_bus.pos_read(1)
 tilt_angle_default = servo_bus.pos_read(2)
 servo_bus.move_time_write(1, pan_angle_default, 2)
