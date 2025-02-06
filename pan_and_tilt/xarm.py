@@ -8,19 +8,20 @@ from lewansoul_servo_bus import ServoBus
 servo_bus = ServoBus('COM3')  # mudar no ubuntu
 
 
-# MOTOR 1: limitar a 90 graus
-# MOTOR 2: limitar a 15 graus
+# MOTOR 1: limitar a 15 graus
+# MOTOR 2: limitar a 90 graus
 # IDs
 PAN_SERVO_ID = 1
 TILT_SERVO_ID = 2
 
 # default angles
-PAN_STANDBY_ANGLE = 145
-TILT_STANDBY_ANGLE = 150
+PAN_STANDBY_ANGLE = servo_bus.pos_read(1)
+#TILT_STANDBY_ANGLE = 150
+TILT_STANDBY_ANGLE = servo_bus.pos_read(2)
 
 # faixa de valores aceitavel
-PAN_VALUES = 90
-TIL_VALUES = 15
+PAN_VALUES = 15
+TIL_VALUES = 90
 
 # Limites para os ângulos de pan e tilt
 PAN_MIN_ANGLE = PAN_STANDBY_ANGLE - PAN_VALUES
@@ -49,9 +50,9 @@ def set_servo_angle(servo_id, angle, duration):
 
 
 def main():
-    set_servo_angle(PAN_SERVO_ID, PAN_STANDBY_ANGLE, 5)
-    set_servo_angle(TILT_SERVO_ID, TILT_STANDBY_ANGLE, 5)
-    time.sleep(6)
+    set_servo_angle(PAN_SERVO_ID, PAN_STANDBY_ANGLE, 2)
+    set_servo_angle(TILT_SERVO_ID, TILT_STANDBY_ANGLE, 2)
+    time.sleep(3)
     deltas_X = []
     deltas_Y = []
     base_url = "http://192.168.0.101:8080"
@@ -113,8 +114,8 @@ def main():
     #tilt_angle = pixels_to_angle(deltaY, TILT_PIXELS, TILT_FOV, TILT_MIN_ANGLE, TILT_MAX_ANGLE)
 
     # Colocar os servos em posição de standby
-    set_servo_angle(PAN_SERVO_ID, PAN_STANDBY_ANGLE, 5)
-    set_servo_angle(TILT_SERVO_ID, TILT_STANDBY_ANGLE, 5)
+    set_servo_angle(PAN_SERVO_ID, PAN_STANDBY_ANGLE, 3)
+    set_servo_angle(TILT_SERVO_ID, TILT_STANDBY_ANGLE, 3)
     try:
         pan_angle = pixels_to_angle(deltaX, PAN_PIXELS, PAN_FOV)
         tilt_angle = pixels_to_angle(deltaY, TILT_PIXELS, TILT_FOV)
@@ -128,15 +129,14 @@ def main():
         print(tilt_angle)
 
         set_servo_angle(PAN_SERVO_ID, pan_angle, 2)
-        #set_servo_angle(TILT_SERVO_ID, tilt_angle, 2)
-
+        # set_servo_angle(TILT_SERVO_ID, tilt_angle, 2)
 
         # Aguardar um curto período antes de receber novos comandos
         time.sleep(0.1)
     except KeyboardInterrupt:
         # Colocar os servos em posição de standby
-        set_servo_angle(PAN_SERVO_ID, PAN_STANDBY_ANGLE, 5)
-        set_servo_angle(TILT_SERVO_ID, TILT_STANDBY_ANGLE, 5)
+        set_servo_angle(PAN_SERVO_ID, PAN_STANDBY_ANGLE, 3)
+        set_servo_angle(TILT_SERVO_ID, TILT_STANDBY_ANGLE, 3)
         print("\nEncerrando o controle de Pan e Tilt.")
 
     # 4) (Opcional) Baixar a imagem e desenhar TAMBÉM os bounding boxes
