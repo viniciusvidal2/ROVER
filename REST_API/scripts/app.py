@@ -6,20 +6,19 @@ from sensor_msgs.msg import CompressedImage, NavSatFix
 from std_msgs.msg import Float64
 from time import sleep
 import subprocess
-import paho.mqtt.client as mqtt
 from threading import Thread
 from time import sleep, time
 import json
-
+from mqtt_handler import MqttHandler
 ############################################################################
 # region Declarations and Definitions
 ############################################################################
 
 # Connection MQTT to Dashboard
-global_mqtt_client = None
+global_mqtt = None
 MQTT_BROKER = "localhost"
 MQTT_PORT = 1883
-MQTT_TOPIC_TELEMETRY = "substations/SUB001/rovers/Rover-Argo-N-0/telemetry"  # SUB001 e Rover-Argo-N-0 vão ser variáveis
+MQTT_TOPIC = "substations/SUB001/rovers/Rover-Argo-N-0"  # SUB001 e Rover-Argo-N-0 vão ser variáveis
 TELEMETRY_INTERVAL = 2
 
 # Connection to ROS
@@ -203,51 +202,23 @@ def get_temperatures() -> dict:
 # region MQTT Functions
 ############################################################################
 
-
-def init_mqtt_client() -> None:
-    global global_mqtt_client
-    global_mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
-
-    try:
-        global_mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 0)
-        # global_mqtt_client.loop_start()
-    except Exception as e:
-        pass
-
-
-def publish_data() -> None:
-    global global_mqtt_client, global_gps_coordinates, global_compass_heading, global_temperatures
+def publishers() -> None:
+    global global_mqtt, global_gps_coordinates, global_compass_heading, global_temperatures
 
     last_tele_publish = 0
 
     while True:
         current_time = time()
-
-        # Publicar TELEMETRY a cada TELEMETRY_INTERVAL
+        
         if current_time - last_tele_publish >= TELEMETRY_INTERVAL:
-            try:
-                sum_temperatures = 0
-                for data in global_temperatures.values():
-                    sum_temperatures += data["temperature"]
-                message = {
-                    "battery": 50,  # TODO battery reading
-                    "temperature": f"{sum_temperatures/len(global_temperatures):.2f}",
-                    "speed": 12.8,  # TODO speed reading
-                    "location": {
-                        "lat": global_gps_coordinates["latitude"],
-                        "lng": global_gps_coordinates["longitude"],
-                        # "compass": global_compass_heading,
-                    },
-                    "status": "active",  # TODO status
-                }
-                global_mqtt_client.publish(MQTT_TOPIC_TELEMETRY, json.dumps(message))
-                last_tele_publish = current_time
-            except Exception as e:
-                pass
-
+            global_mqtt.publish_telemetry(global_temperatures, 50, 12, global_gps_coordinates, "active")
+            last_tele_publish = current_time
+        
+        if global_mqtt.flag_gps:
+            global_mqtt.flag_gps = False
+            global_mqtt.publish_gps(global_gps_coordinates, global_compass_heading)
+        
         sleep(2)
-
-# TODO reconnection MQTT
 
 # endregion
 ############################################################################
@@ -316,17 +287,14 @@ if __name__ == "__main__":
     # Init all ROS subscribers
     init_subscribers()
     # Init MQTT client
-    init_mqtt_client()
+    global_mqtt = MqttHandler(MQTT_BROKER, MQTT_PORT, MQTT_TOPIC)
     # Start MQTT publishing thread
-    mqtt_thread = Thread(target=publish_data, daemon=True)
+    mqtt_thread = Thread(target=publishers(), daemon=True)
     mqtt_thread.start()
     # Run the app to serve the API
     app.run(host="0.0.0.0", port=5000)
 
     # Disconnect from ROS
     ros.close()
-    # Disconnect from MQTT
-    global_mqtt_client.loop_stop()
-    global_mqtt_client.disconnect()
 
 # endregion
