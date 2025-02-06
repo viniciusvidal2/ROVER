@@ -289,7 +289,7 @@ if __name__ == "__main__":
     # Init MQTT client
     global_mqtt = MqttHandler(MQTT_BROKER, MQTT_PORT, MQTT_TOPIC)
     # Start MQTT publishing thread
-    mqtt_thread = Thread(target=publishers(), daemon=True)
+    mqtt_thread = Thread(target=publishers, daemon=True)
     mqtt_thread.start()
     # Run the app to serve the API
     app.run(host="0.0.0.0", port=5000)
