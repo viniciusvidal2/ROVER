@@ -3,26 +3,12 @@ import time
 
 servo_bus = ServoBus('COM3')
 
-# servo_bus.id_write(1, 2)
-
 # Move servo with ID 1 to 90 degrees in 1.0 seconds
-#servo_bus.move_time_write(1, 145, 1.0)
-#print(servo_bus.pos_read(1))
 pan_angle_default = servo_bus.pos_read(1)
-#tilt_angle_default = servo_bus.pos_read(2)
-tilt_angle_default = 240
-servo_bus.move_time_write(1, 125, 2)
+tilt_angle_default = servo_bus.pos_read(2)
+servo_bus.move_time_write(1, pan_angle_default, 2)
 time.sleep(2)
-servo_bus.move_time_write(2, 240, 2)
-# servo_bus.move_time_write(2, 95, 1.0)
-# time.sleep(2)
-# servo_bus.move_time_write(1, 155, 1.0)
-# time.sleep(2)
-# servo_bus.move_time_write(2, 65, 1.0)
-# time.sleep(2)
-# servo_bus.move_time_write(1, 140, 1.0)
-# time.sleep(2)
-# servo_bus.move_time_write(2, 80, 1.0)
+servo_bus.move_time_write(2, tilt_angle_default, 2)
 
 
 def set_servo_angle(servo_id, angle, duration):
@@ -44,10 +30,6 @@ def main():
             tilt_angle = tilt_angle_default
             set_servo_angle(1, pan_angle, 0.5)
             time.sleep(1)
-            # set_servo_angle(2, tilt_angle, 2)
-
-            # Aguardar um curto período antes de receber novos comandos
-            #time.sleep(3)
 
             set_servo_angle(1, pan_angle_default, 0.5)
             set_servo_angle(2, tilt_angle_default, 0.5)
