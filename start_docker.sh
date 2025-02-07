@@ -4,7 +4,12 @@ mosquitto -c /mosquitto/config/mosquitto.conf -d
 
 source /opt/ros/noetic/setup.bash
 source /home/rover/devel/setup.bash
-nohup roslaunch /home/rover/rover_bringup.launch &
+
+ENABLE_HARDWARE=${ENABLE_HARDWARE:-true}
+
+nohup roslaunch /home/rover/rover_bringup.launch \
+    enable_hardware:=${ENABLE_HARDWARE} &
+
 nohup python3 /home/rover/src/REST_API/scripts/app.py &
 echo "ROS environment is running"
 
