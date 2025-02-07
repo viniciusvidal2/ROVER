@@ -8,8 +8,8 @@ from time import sleep
 import subprocess
 from threading import Thread
 from time import sleep, time
-import json
 from mqtt_handler import MqttHandler
+
 ############################################################################
 # region Declarations and Definitions
 ############################################################################
@@ -204,21 +204,21 @@ def get_temperatures() -> dict:
 
 def publishers() -> None:
     global global_mqtt, global_gps_coordinates, global_compass_heading, global_temperatures
-
-    last_tele_publish = 0
-
+    
+    last_telemetry = 0
+    
     while True:
         current_time = time()
         
-        if current_time - last_tele_publish >= TELEMETRY_INTERVAL:
-            global_mqtt.publish_telemetry(global_temperatures, 50, 12, global_gps_coordinates, "active")
-            last_tele_publish = current_time
+        if current_time - last_telemetry >= TELEMETRY_INTERVAL:
+            global_mqtt.publish_telemetry(global_temperatures, 50, 12, global_gps_coordinates, global_compass_heading, "active") # TODO battery, speed, status
+            last_telemetry = current_time
         
         if global_mqtt.flag_gps:
-            global_mqtt.flag_gps = False
             global_mqtt.publish_gps(global_gps_coordinates, global_compass_heading)
+            global_mqtt.flag_gps = False
         
-        sleep(2)
+        sleep(0.01)
 
 # endregion
 ############################################################################
