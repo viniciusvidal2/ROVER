@@ -12,7 +12,7 @@ TILT_SERVO_ID = 2
 PAN_STANDBY_ANGLE = 125
 TILT_STANDBY_ANGLE = 240
 PAN_VALUES = 15
-TILT_VALUES = 90
+TILT_VALUES = 80
 PAN_MIN_ANGLE = PAN_STANDBY_ANGLE - PAN_VALUES
 PAN_MAX_ANGLE = PAN_STANDBY_ANGLE + PAN_VALUES
 TILT_MIN_ANGLE = TILT_STANDBY_ANGLE - TILT_VALUES
@@ -58,7 +58,7 @@ class MqttHandler:
             self.topic = topic
             self.client.on_message = self.on_message
             self.client.reconnect_delay_set(min_delay=1, max_delay=120)
-        
+
             self.client.connect(broker, port, 0)
 
             self.client.subscribe(f"{topic}/commands")
@@ -74,24 +74,29 @@ class MqttHandler:
         Sets initial pan and tilt angles to their respective standby positions.
         """
         try:
+            self.pan = 0
+            self.tilt = 0
+
             self.servo = ServoBus("/dev/ttyUSB0")
 
             self.servo.move_time_write(1, PAN_STANDBY_ANGLE, 2)
             self.servo.move_time_write(2, TILT_STANDBY_ANGLE, 2)
+
         except Exception as e:
             print("Error init Servo {e}")
 
     # endregion
 
-    def __del__(self) -> None:
+    def close(self) -> None:
         """
         Cleanup method to properly stop MQTT client loop and disconnect from broker.
         """
         self.client.loop_stop()
         self.client.disconnect()
-        
-        self.servo.move_time_write(PAN_SERVO_ID, PAN_STANDBY_ANGLE, 2)
-        self.servo.move_time_write(TILT_SERVO_ID, TILT_STANDBY_ANGLE, 2)
+
+        if hasattr(self, "servo"):
+            self.servo.move_time_write(PAN_SERVO_ID, PAN_STANDBY_ANGLE, 2)
+            self.servo.move_time_write(TILT_SERVO_ID, TILT_STANDBY_ANGLE, 2)
 
     ############################################################################
     # region Subscribe
@@ -133,12 +138,20 @@ class MqttHandler:
         deltaX = msg.get("deltaX", 0)
         deltaY = msg.get("deltaY", 0)
 
+        if deltaX == 10000:
+            self.pan = 0
+            self.tilt = 0
+            deltaX = 0
+            deltaY = 0
+
         pan_angle = self.pixels_to_angle(deltaX, PAN_PIXELS, PAN_FOV)
         tilt_angle = self.pixels_to_angle(deltaY, TILT_PIXELS, TILT_FOV)
+        self.pan += pan_angle
+        self.tilt += tilt_angle
 
         # Adjust based on standby angle
-        pan_angle = -pan_angle + PAN_STANDBY_ANGLE
-        tilt_angle = tilt_angle + TILT_STANDBY_ANGLE
+        pan_angle = self.pan + PAN_STANDBY_ANGLE
+        tilt_angle = -self.tilt + TILT_STANDBY_ANGLE
 
         # Respect movement limits
         pan_angle = max(PAN_MIN_ANGLE, min(PAN_MAX_ANGLE, pan_angle))
