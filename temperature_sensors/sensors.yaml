@@ -1,14 +1,20 @@
 bmp280:
-  - name: electronics
+  # motor 1
+  - name: T1
     cs_pin: D5
-  - name: back_right
+  # motor 2
+  - name: T2
     cs_pin: D6
-  # - name: back_left
+  # motor 3
+  # - name: T3
   #   cs_pin: D3
-  # - name: front_right
+  # motor 4
+  # - name: T4
   #   cs_pin: D4
-  # - name: front_left
+  # central
+  # - name: T5
   #   cs_pin: D5
 dht22:
-  - name: electronics1
+  # central
+  - name: T6
     pin: D26

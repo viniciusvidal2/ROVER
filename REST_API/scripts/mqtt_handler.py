@@ -6,7 +6,7 @@ from lewansoul_servo_bus import ServoBus
 # region Constants
 ############################################################################
 
-# Servo constants
+# Servo
 PAN_SERVO_ID = 1
 TILT_SERVO_ID = 2
 PAN_STANDBY_ANGLE = 125
@@ -24,24 +24,25 @@ TILT_FOV = 60
 
 # endregion
 
-
 class MqttHandler:
     ############################################################################
-    # region Init
+    # region Init and Close
     ############################################################################
 
     def __init__(self, broker, port, topic) -> None:
-        """Initialize the MQTT handler with broker connection and servo setup.
+        """Initialize the MQTT handler with broker connection, servo setup and other configurations.
 
         Args:
             broker (str): MQTT broker address
             port (int): MQTT broker port
             topic (str): Base MQTT topic for communications
         """
-        self.init_mqtt(broker, port, topic)
-
+        # flags initialization
         self.flag_gps = False
-
+        self.flag_lantern = -1
+        
+        self.init_mqtt(broker, port, topic)
+        
         self.init_servo()
 
     def init_mqtt(self, broker, port, topic) -> None:
@@ -73,10 +74,10 @@ class MqttHandler:
         Initialize servo motors by connecting to USB port and setting standby positions.
         Sets initial pan and tilt angles to their respective standby positions.
         """
+        self.pan = 0
+        self.tilt = 0
+        
         try:
-            self.pan = 0
-            self.tilt = 0
-
             self.servo = ServoBus("/dev/ttyUSB0")
 
             self.servo.move_time_write(1, PAN_STANDBY_ANGLE, 2)
@@ -84,8 +85,6 @@ class MqttHandler:
 
         except Exception as e:
             print("Error init Servo {e}")
-
-    # endregion
 
     def close(self) -> None:
         """
@@ -97,6 +96,8 @@ class MqttHandler:
         if hasattr(self, "servo"):
             self.servo.move_time_write(PAN_SERVO_ID, PAN_STANDBY_ANGLE, 2)
             self.servo.move_time_write(TILT_SERVO_ID, TILT_STANDBY_ANGLE, 2)
+
+    # endregion
 
     ############################################################################
     # region Subscribe
@@ -116,17 +117,19 @@ class MqttHandler:
             self.subscription_commands(msg)
         elif message.topic == f"{self.topic}/escolha":
             self.subscription_escolha(msg)
-
+        elif message.topic == f"{self.topic}/lantern":
+            self.subscription_lantern(msg)
+    
     def subscription_commands(self, msg) -> None:
         """
         Handle command messages received on the commands topic.
-
+        
         Args:
             msg (dict): JSON message containing command data
         """
         if msg.get("gps") == 1:
             self.flag_gps = True
-
+    
     def subscription_escolha(self, msg) -> None:
         """
         Handle position adjustment messages for servo control.
@@ -137,28 +140,37 @@ class MqttHandler:
         """
         deltaX = msg.get("deltaX", 0)
         deltaY = msg.get("deltaY", 0)
-
+        
         if deltaX == 10000:
             self.pan = 0
             self.tilt = 0
             deltaX = 0
             deltaY = 0
-
+            
         pan_angle = self.pixels_to_angle(deltaX, PAN_PIXELS, PAN_FOV)
         tilt_angle = self.pixels_to_angle(deltaY, TILT_PIXELS, TILT_FOV)
         self.pan += pan_angle
         self.tilt += tilt_angle
-
+        
         # Adjust based on standby angle
         pan_angle = self.pan + PAN_STANDBY_ANGLE
         tilt_angle = -self.tilt + TILT_STANDBY_ANGLE
-
+        
         # Respect movement limits
         pan_angle = max(PAN_MIN_ANGLE, min(PAN_MAX_ANGLE, pan_angle))
         tilt_angle = max(TILT_MIN_ANGLE, min(TILT_MAX_ANGLE, tilt_angle))
-
+        
         self.set_servo_angle(PAN_SERVO_ID, pan_angle, 2)
         self.set_servo_angle(TILT_SERVO_ID, tilt_angle, 2)
+    
+    def subscription_lantern(self, msg) -> None:
+        """
+        Handle lantern control messages.
+        
+        Args:
+            msg (dict): JSON message containing lantern state ('l' key)
+        """
+        self.flag_lantern = msg.get("l", -1)
 
     # endregion
 
@@ -167,7 +179,7 @@ class MqttHandler:
     ############################################################################
 
     def publish_telemetry(
-        self, temperatures, battery, speed, gps_coordinates, gps_compass, status
+        self, temperatures, battery, speed, gps_coordinates, gps_compass, status, lantern
     ) -> None:
         """
         Publish telemetry data to MQTT broker.
@@ -179,16 +191,12 @@ class MqttHandler:
             gps_coordinates (dict): GPS coordinates containing latitude and longitude
             gps_compass (float): Compass heading
             status (str): Current status
+            lantern (int): Lantern state
         """
         try:
-            mean_temperature = (
-                sum(data["temperature"] for data in temperatures.values()) / len(temperatures)
-                if temperatures else 0
-            )
-
             message = {
+                **temperatures,
                 "battery": battery,
-                "temperature": f"{mean_temperature:.2f}",
                 "speed": speed,
                 "location": {
                     "lat": gps_coordinates["latitude"],
@@ -196,6 +204,7 @@ class MqttHandler:
                     "compass": gps_compass,
                 },
                 "status": status,
+                "lantern": lantern,
             }
             self.client.publish(f"{self.topic}/telemetry", json.dumps(message))
         except Exception as e:

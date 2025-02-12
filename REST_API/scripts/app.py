@@ -9,6 +9,8 @@ import subprocess
 from threading import Thread
 from time import sleep, time
 from mqtt_handler import MqttHandler
+import board
+from digitalio import DigitalInOut, Direction
 
 ############################################################################
 # region Declarations and Definitions
@@ -31,6 +33,7 @@ global_image_camera = None
 global_gps_coordinates = {"latitude": -1, "longitude": -1}
 global_compass_heading = -1  # -1 means no data [degrees 0-360]
 global_temperatures = dict()
+global_lantern = DigitalInOut(board.D18)
 global_image_topic = roslibpy.Topic(
     ros, "/image_user/compressed", "sensor_msgs/CompressedImage"
 )
@@ -203,7 +206,7 @@ def get_temperatures() -> dict:
 ############################################################################
 
 def publishers() -> None:
-    global global_mqtt, global_gps_coordinates, global_compass_heading, global_temperatures
+    global global_mqtt, global_gps_coordinates, global_compass_heading, global_temperatures, global_lantern
     
     last_telemetry = 0
     
@@ -211,12 +214,16 @@ def publishers() -> None:
         current_time = time()
         
         if current_time - last_telemetry >= TELEMETRY_INTERVAL:
-            global_mqtt.publish_telemetry(global_temperatures, 50, 12, global_gps_coordinates, global_compass_heading, "active") # TODO battery, speed, status
+            global_mqtt.publish_telemetry(global_temperatures, 50, 12, global_gps_coordinates, global_compass_heading, "active", global_lantern.value) # TODO battery, speed, status
             last_telemetry = current_time
         
         if global_mqtt.flag_gps:
             global_mqtt.publish_gps(global_gps_coordinates, global_compass_heading)
             global_mqtt.flag_gps = False
+            
+        if global_mqtt.flag_lantern != -1:
+            global_lantern.value = global_mqtt.flag_lantern
+            global_mqtt.flag_lantern = -1
         
         sleep(0.01)
 
@@ -281,11 +288,19 @@ def init_subscribers() -> None:
     global_compass_topic.subscribe(callback=compass_callback)
 
 
+def init_gpios() -> None:
+    global global_lantern
+    # Lantern
+    global_lantern.direction = Direction.OUTPUT
+    global_lantern.value = False
+
 if __name__ == "__main__":
     # Connect to ROS
     guarantee_ros_connection()
     # Init all ROS subscribers
     init_subscribers()
+    # Init GPIOs
+    init_gpios()
     # Init MQTT client
     global_mqtt = MqttHandler(MQTT_BROKER, MQTT_PORT, MQTT_TOPIC)
     # Start MQTT publishing thread
