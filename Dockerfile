@@ -51,7 +51,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Install pip dependencies
 RUN pip install --no-cache-dir future psutil dronekit opencv-python
-RUN pip install --no-cache-dir utm datetime scikit-fuzzy networkx flask flask_cors roslibpy paho-mqtt
+RUN pip install --no-cache-dir utm datetime scikit-fuzzy networkx flask flask_cors roslibpy paho-mqtt requests
 
 # Configure Catkin and install MAVROS dependencies
 WORKDIR /home/rover/

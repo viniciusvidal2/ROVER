@@ -38,7 +38,7 @@ class MqttHandler:
             topic (str): Base MQTT topic for communications
         """
         # flags initialization
-        self.flag_gps = False
+        self.flag_gps = 0
         self.flag_lantern = -1
         
         self.init_mqtt(broker, port, topic)
@@ -64,10 +64,11 @@ class MqttHandler:
 
             self.client.subscribe(f"{topic}/commands")
             self.client.subscribe(f"{topic}/escolha")
+            self.client.subscribe(f"{topic}/lantern")
 
             self.client.loop_start()
         except Exception as e:
-            print("Error init MQTT {e}")
+            print(f"Error init MQTT {e}")
 
     def init_servo(self) -> None:
         """
@@ -84,7 +85,7 @@ class MqttHandler:
             self.servo.move_time_write(2, TILT_STANDBY_ANGLE, 2)
 
         except Exception as e:
-            print("Error init Servo {e}")
+            print(f"Error init Servo {e}")
 
     def close(self) -> None:
         """
@@ -117,9 +118,7 @@ class MqttHandler:
             self.subscription_commands(msg)
         elif message.topic == f"{self.topic}/escolha":
             self.subscription_escolha(msg)
-        elif message.topic == f"{self.topic}/lantern":
-            self.subscription_lantern(msg)
-    
+
     def subscription_commands(self, msg) -> None:
         """
         Handle command messages received on the commands topic.
@@ -127,9 +126,9 @@ class MqttHandler:
         Args:
             msg (dict): JSON message containing command data
         """
-        if msg.get("gps") == 1:
-            self.flag_gps = True
-    
+        self.flag_gps = msg.get("gps", 0)
+        self.flag_lantern = msg.get("lantern", -1)
+
     def subscription_escolha(self, msg) -> None:
         """
         Handle position adjustment messages for servo control.
@@ -138,39 +137,31 @@ class MqttHandler:
         Args:
             msg (dict): JSON message containing deltaX and deltaY values
         """
-        deltaX = msg.get("deltaX", 0)
-        deltaY = msg.get("deltaY", 0)
-        
-        if deltaX == 10000:
-            self.pan = 0
-            self.tilt = 0
-            deltaX = 0
-            deltaY = 0
+        if "deltaX" in msg and "deltaY" in msg:
+            if deltaX == 10000:
+                self.pan = 0
+                self.tilt = 0
+                deltaX = 0
+                deltaY = 0
+                
+            pan_angle = self.pixels_to_angle(deltaX, PAN_PIXELS, PAN_FOV)
+            tilt_angle = self.pixels_to_angle(deltaY, TILT_PIXELS, TILT_FOV)
+            self.pan += pan_angle
+            self.tilt += tilt_angle
             
-        pan_angle = self.pixels_to_angle(deltaX, PAN_PIXELS, PAN_FOV)
-        tilt_angle = self.pixels_to_angle(deltaY, TILT_PIXELS, TILT_FOV)
-        self.pan += pan_angle
-        self.tilt += tilt_angle
-        
-        # Adjust based on standby angle
-        pan_angle = self.pan + PAN_STANDBY_ANGLE
-        tilt_angle = -self.tilt + TILT_STANDBY_ANGLE
-        
-        # Respect movement limits
-        pan_angle = max(PAN_MIN_ANGLE, min(PAN_MAX_ANGLE, pan_angle))
-        tilt_angle = max(TILT_MIN_ANGLE, min(TILT_MAX_ANGLE, tilt_angle))
-        
-        self.set_servo_angle(PAN_SERVO_ID, pan_angle, 2)
-        self.set_servo_angle(TILT_SERVO_ID, tilt_angle, 2)
-    
-    def subscription_lantern(self, msg) -> None:
-        """
-        Handle lantern control messages.
-        
-        Args:
-            msg (dict): JSON message containing lantern state ('l' key)
-        """
-        self.flag_lantern = msg.get("l", -1)
+            # Adjust based on standby angle
+            pan_angle = self.pan + PAN_STANDBY_ANGLE
+            tilt_angle = -self.tilt + TILT_STANDBY_ANGLE
+            
+            # Respect movement limits
+            pan_angle = max(PAN_MIN_ANGLE, min(PAN_MAX_ANGLE, pan_angle))
+            tilt_angle = max(TILT_MIN_ANGLE, min(TILT_MAX_ANGLE, tilt_angle))
+            
+            try:
+                self.set_servo_angle(PAN_SERVO_ID, pan_angle, 2)
+                self.set_servo_angle(TILT_SERVO_ID, tilt_angle, 2)
+            except Exception as e:
+                print(f"Error init Servo {e}")
 
     # endregion
 
@@ -194,6 +185,7 @@ class MqttHandler:
             lantern (int): Lantern state
         """
         try:
+            # temperatures_data = {key: temp_data["temperature"] for key, temp_data in temperatures.items()}
             message = {
                 **temperatures,
                 "battery": battery,
@@ -204,11 +196,11 @@ class MqttHandler:
                     "compass": gps_compass,
                 },
                 "status": status,
-                "lantern": lantern,
+                **lantern,
             }
             self.client.publish(f"{self.topic}/telemetry", json.dumps(message))
         except Exception as e:
-            print("Publish Telemetry failed {e}")
+            print(f"Publish Telemetry failed {e}")
 
     def publish_gps(self, gps, compass) -> None:
         """
@@ -226,7 +218,7 @@ class MqttHandler:
             }
             self.client.publish(f"{self.topic}/escolha", json.dumps(message))
         except Exception as e:
-            print("Publish GPS failed {e}")
+            print(f"Publish GPS failed {e}")
 
     # endregion
 

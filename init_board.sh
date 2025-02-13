@@ -36,15 +36,6 @@ log "Display service is on!"
 # Create the folder that will be used for rosbag debug files
 mkdir -p "/home/rover/bags_debug"
 
-# Run temperature sensors monitoring
-sleep 2s
-TS_HOME = "/home/rover/ROVER/temperature_sensors"
-if [ ! -d "$TS_HOME/env"]; then
-    /usr/bin/python3 -m venv $TS_HOME/env
-    $TS_HOME/env/bin/pip install -r $TS_HOME/requirements.txt
-fi
-nohup $TS_HOME/env/bin/python $TS_HOME/temperature_sensors.py &
-
 # Run the docker container with proper parameters
 sleep 5s
 echo 1 | sudo -S systemctl enable docker.service

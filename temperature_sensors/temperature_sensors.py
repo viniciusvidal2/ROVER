@@ -1,5 +1,6 @@
 import time
 import board
+import digitalio
 from digitalio import DigitalInOut, Direction
 import adafruit_dht
 import adafruit_bmp280
@@ -7,7 +8,6 @@ import yaml
 import requests
 import csv
 from datetime import datetime
-
 
 def main(debug: bool = False) -> None:
     """Reads the temperature and humidity from the sensors and sends the data to the rest api.
