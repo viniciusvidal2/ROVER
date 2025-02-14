@@ -62,6 +62,17 @@ mkdir /home/rover/maps
 mkdir /home/rover/bags_debug
 ```
 
+### Creating virtual environment for GPIOs
+We need to create a virtual environment in the gpios_control folder to install the required libraries for dealing with the GPIOs pins using the following commands:
+
+```bash
+cd home/rover/ROVER/gpios_control
+python -m venv env
+source env/bin/activate
+pip install -r requirements.txt
+deactivate
+```
+
 ### Preparing the startup services
 We need not only to build the docker image inside the embedded board, but to setup its system to run everything at bootup. To do that, we must create services with the proper dependencies
 - Create a file at /etc/systemd/system/rover_bringup.service with the following command:
@@ -121,15 +132,34 @@ sudo systemctl enable network_connection.service
 sudo systemctl start network_connection.service
 ```
 
-### Creating sensors reading virtual environment
-We need to create a virtual environment in the temperature_sensors folder to install the required libraries for reading the BMP280 and DHT22 sensors using the following commands:
-
+- Create a file at /etc/systemd/system/gpios_bringup.service with the following command:
 ```bash
-cd home/rover/ROVER/temperature_sensors
-python -m venv env
-source env/bin/activate
-pip install -r requirements.txt
-deactivate
+sudo nano /etc/systemd/system/gpios_bringup.service
+```
+
+- Add the following content to this file:
+```
+[Unit]
+Description=GPIOs system bringup for Rover
+After=graphical.target
+Wants=graphical.target
+
+[Service]
+Type=simple
+ExecStart=/home/rover/ROVER/gpios_control/env/bin/python /home/rover/ROVER/gpios_control/gpios_control.py
+WorkingDirectory=/home/rover/ROVER/gpios_control
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=graphical.target
+```
+
+- Enable and start the service with the commands:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable gpios_bringup.service
+sudo systemctl start gpios_bringup.service
 ```
 
 ### Building the image inside the board
@@ -172,7 +202,7 @@ sudo docker run --restart=always -itd \
 -v /home/rover/bags_debug:/home/rover/bags_debug \
 --network host \
 --name rover_container \
-rover_image:0.1 \
+rover_image:0.1
 ```
 
 - If you're only testing with a standalone Raspberry Pi and not using all the hardware, you can add this parameter to the docker run command to prevent it from interfering with other programs.

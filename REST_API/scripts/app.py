@@ -34,7 +34,6 @@ ros = roslibpy.Ros(host=global_ros_ip, port=global_ros_port)
 global_image_camera = None
 global_gps_coordinates = {"latitude": -1, "longitude": -1}
 global_compass_heading = -1  # -1 means no data [degrees 0-360]
-# global_temperatures = dict()
 global_image_topic = roslibpy.Topic(
     ros, "/image_user/compressed", "sensor_msgs/CompressedImage"
 )
@@ -45,7 +44,8 @@ global_compass_topic = roslibpy.Topic(
     ros, "/mavros/global_position/compass_hdg", "std_msgs/Float64"
 )
 global_status_text_topic = roslibpy.Topic(
-    ros, "/mavros/statustext/send", "mavros_msgs/Statustext")
+    ros, "/mavros/statustext/send", "mavros_msgs/Statustext"
+)
 
 
 # Init Flask app
@@ -138,28 +138,17 @@ def stop_localization():
         return jsonify({"status": 1, "error": str(e)}), 500
 
 
-@app.route('/status_text', methods=['POST'])
+@app.route("/status_text", methods=["POST"])
 def publish_status_text():
     try:
         # Sending status text with mavros for the rover to be relayed to the radio controller
         data = request.get_json()
-        global_status_text_topic.publish(roslibpy.Message(
-            {'severity': data['severity'], 'text': data['text']}))
+        global_status_text_topic.publish(
+            roslibpy.Message({"severity": data["severity"], "text": data["text"]})
+        )
         return jsonify({"status": 1, "message": "Status text published successfully"})
     except Exception as e:
         return jsonify({"status": 0, "error": str(e)}), 500
-
-
-# @app.route("/temperatures/post", methods=["POST"])
-# def post_temperatures():
-#     try:
-#         global global_temperatures
-#         data = request.get_json()
-#         if data:
-#             global_temperatures = data
-#         return jsonify({"status": 1, "message": "Temperatures get successfully"})
-#     except Exception as e:
-#         return jsonify({"status": 0, "error": str(e)}), 500
 
 
 # endregion
@@ -203,36 +192,50 @@ def get_gps_location_orientation() -> dict:
 
 def publishers() -> None:
     global global_mqtt, global_gps_coordinates, global_compass_heading
-    
+
     last_telemetry = 0
-    
+
     while True:
-        current_time = time()
-        
-        if current_time - last_telemetry >= TELEMETRY_INTERVAL:
-            try:
-                lantern = requests.get(f"{endpoint_gpios}/lantern/get").json()
-            except Exception as e:
-                lantern = {"lantern": -1}   
-                print(f"Error get lantern {e}")
-            try:
-                temperatures = requests.get(f"{endpoint_gpios}/temperatures/get").json()
-            except Exception as e:
-                temperatures = {"T": -1}   
-                print(f"Error get temperatures {e}")
-            global_mqtt.publish_telemetry(temperatures, 50, 12, global_gps_coordinates, global_compass_heading, "active", lantern) # TODO battery, speed, status, lante
-            last_telemetry = current_time
-        
-        if global_mqtt.flag_gps:
-            global_mqtt.publish_gps(global_gps_coordinates, global_compass_heading)
-            global_mqtt.flag_gps = False
-            
-        if global_mqtt.flag_lantern != -1:
-            lantern_data = {"lantern": global_mqtt.flag_lantern}
-            _ = requests.post(f"{endpoint_gpios}/lantern/post", json=lantern_data)
-            global_mqtt.flag_lantern = -1
-        
-        sleep(0.01)
+        try:
+            current_time = time()
+
+            if current_time - last_telemetry >= TELEMETRY_INTERVAL:
+                try:
+                    lantern = requests.get(f"{endpoint_gpios}/lantern/get").json()
+                except Exception as e:
+                    lantern = {"lantern": -1}
+                    print(f"Error get lantern {e}")
+                try:
+                    temperatures = requests.get(
+                        f"{endpoint_gpios}/temperatures/get"
+                    ).json()
+                except Exception as e:
+                    temperatures = {"T": -1}
+                    print(f"Error get temperatures {e}")
+                global_mqtt.publish_telemetry(
+                    temperatures,
+                    50,
+                    12,
+                    global_gps_coordinates,
+                    global_compass_heading,
+                    "active",
+                    lantern,
+                )  # TODO battery, speed, status
+                last_telemetry = current_time
+
+            if global_mqtt.flag_gps:
+                global_mqtt.publish_gps(global_gps_coordinates, global_compass_heading)
+                global_mqtt.flag_gps = False
+
+            if global_mqtt.flag_lantern != -1:
+                lantern_data = {"lantern": global_mqtt.flag_lantern}
+                _ = requests.post(f"{endpoint_gpios}/lantern/post", json=lantern_data)
+                global_mqtt.flag_lantern = -1
+
+            sleep(0.01)
+        except Exception as e:
+            print(f"Erro na thread MQTT: {e}")
+            sleep(10)
 
 
 # endregion
@@ -294,6 +297,7 @@ def init_subscribers() -> None:
     global_image_topic.subscribe(callback=camera_image_callback)
     global_gps_topic.subscribe(callback=gps_callback)
     global_compass_topic.subscribe(callback=compass_callback)
+
 
 if __name__ == "__main__":
     # Connect to ROS

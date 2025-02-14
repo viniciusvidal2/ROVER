@@ -168,3 +168,4 @@ obstacle_avoidance/debug
 obstacle_avoidance/scripts/__pycache__
 .vscode
 FAST_LIO/Log
+temperature_data.csv

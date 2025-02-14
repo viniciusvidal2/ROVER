@@ -24,6 +24,7 @@ TILT_FOV = 60
 
 # endregion
 
+
 class MqttHandler:
     ############################################################################
     # region Init and Close
@@ -40,9 +41,9 @@ class MqttHandler:
         # flags initialization
         self.flag_gps = 0
         self.flag_lantern = -1
-        
+
         self.init_mqtt(broker, port, topic)
-        
+
         self.init_servo()
 
     def init_mqtt(self, broker, port, topic) -> None:
@@ -64,7 +65,6 @@ class MqttHandler:
 
             self.client.subscribe(f"{topic}/commands")
             self.client.subscribe(f"{topic}/escolha")
-            self.client.subscribe(f"{topic}/lantern")
 
             self.client.loop_start()
         except Exception as e:
@@ -77,7 +77,7 @@ class MqttHandler:
         """
         self.pan = 0
         self.tilt = 0
-        
+
         try:
             self.servo = ServoBus("/dev/ttyUSB0")
 
@@ -122,7 +122,7 @@ class MqttHandler:
     def subscription_commands(self, msg) -> None:
         """
         Handle command messages received on the commands topic.
-        
+
         Args:
             msg (dict): JSON message containing command data
         """
@@ -143,20 +143,20 @@ class MqttHandler:
                 self.tilt = 0
                 deltaX = 0
                 deltaY = 0
-                
+
             pan_angle = self.pixels_to_angle(deltaX, PAN_PIXELS, PAN_FOV)
             tilt_angle = self.pixels_to_angle(deltaY, TILT_PIXELS, TILT_FOV)
             self.pan += pan_angle
             self.tilt += tilt_angle
-            
+
             # Adjust based on standby angle
             pan_angle = self.pan + PAN_STANDBY_ANGLE
             tilt_angle = -self.tilt + TILT_STANDBY_ANGLE
-            
+
             # Respect movement limits
             pan_angle = max(PAN_MIN_ANGLE, min(PAN_MAX_ANGLE, pan_angle))
             tilt_angle = max(TILT_MIN_ANGLE, min(TILT_MAX_ANGLE, tilt_angle))
-            
+
             try:
                 self.set_servo_angle(PAN_SERVO_ID, pan_angle, 2)
                 self.set_servo_angle(TILT_SERVO_ID, tilt_angle, 2)
@@ -170,7 +170,14 @@ class MqttHandler:
     ############################################################################
 
     def publish_telemetry(
-        self, temperatures, battery, speed, gps_coordinates, gps_compass, status, lantern
+        self,
+        temperatures,
+        battery,
+        speed,
+        gps_coordinates,
+        gps_compass,
+        status,
+        lantern,
     ) -> None:
         """
         Publish telemetry data to MQTT broker.
