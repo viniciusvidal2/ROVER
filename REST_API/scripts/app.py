@@ -189,6 +189,36 @@ def get_gps_location_orientation() -> dict:
 # region MQTT Functions
 ############################################################################
 
+def publish_telemetry():
+    # TODO speed, status
+    global global_mqtt, global_gps_coordinates, global_compass_heading
+    try:
+        lantern = requests.get(f"{endpoint_gpios}/lantern/get").json()
+    except Exception as e:
+        lantern = {"lantern": -1}
+        print(f"Error get lantern {e}")
+    try:
+        temperatures = requests.get(
+            f"{endpoint_gpios}/temperatures/get"
+        ).json()
+    except Exception as e:
+        temperatures = {"T": -1}
+        print(f"Error get temperatures {e}")
+    try:
+        battery = requests.get(f"{endpoint_gpios}/soc/get").json()["soc"]
+    except Exception as e:
+        battery = -1
+        print(f"Error get battery SOC {e}")
+    global_mqtt.publish_telemetry(
+        temperatures,
+        battery,
+        12,
+        global_gps_coordinates,
+        global_compass_heading,
+        "active",
+        lantern,
+    )
+
 
 def publishers() -> None:
     global global_mqtt, global_gps_coordinates, global_compass_heading
@@ -200,41 +230,26 @@ def publishers() -> None:
             current_time = time()
 
             if current_time - last_telemetry >= TELEMETRY_INTERVAL:
-                try:
-                    lantern = requests.get(f"{endpoint_gpios}/lantern/get").json()
-                except Exception as e:
-                    lantern = {"lantern": -1}
-                    print(f"Error get lantern {e}")
-                try:
-                    temperatures = requests.get(
-                        f"{endpoint_gpios}/temperatures/get"
-                    ).json()
-                except Exception as e:
-                    temperatures = {"T": -1}
-                    print(f"Error get temperatures {e}")
-                global_mqtt.publish_telemetry(
-                    temperatures,
-                    50,
-                    12,
-                    global_gps_coordinates,
-                    global_compass_heading,
-                    "active",
-                    lantern,
-                )  # TODO battery, speed, status
+                publish_telemetry()
                 last_telemetry = current_time
 
             if global_mqtt.flag_gps:
                 global_mqtt.publish_gps(global_gps_coordinates, global_compass_heading)
-                global_mqtt.flag_gps = False
+                global_mqtt.flag_gps = 0
 
             if global_mqtt.flag_lantern != -1:
                 lantern_data = {"lantern": global_mqtt.flag_lantern}
                 _ = requests.post(f"{endpoint_gpios}/lantern/post", json=lantern_data)
                 global_mqtt.flag_lantern = -1
 
+            if global_mqtt.flag_bms:
+                bms = requests.get(f"{endpoint_gpios}/bms/get").json()
+                global_mqtt.publish_bms(bms)
+                global_mqtt.flag_bms = 0
+
             sleep(0.01)
         except Exception as e:
-            print(f"Erro na thread MQTT: {e}")
+            print(f"Error in MQTT thread: {e}")
             sleep(10)
 
 

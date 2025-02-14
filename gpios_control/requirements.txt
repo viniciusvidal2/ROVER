@@ -5,3 +5,4 @@ adafruit-circuitpython-dht==4.0.7
 requests==2.32.3
 Flask==3.1.0
 Flask-Cors==5.0.0
+dalybms==0.5.0

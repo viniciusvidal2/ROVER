@@ -21,7 +21,7 @@ PAN_PIXELS = 1280  # Image width
 TILT_PIXELS = 720  # Image height
 PAN_FOV = 120
 TILT_FOV = 60
-
+SERVO_USB = "/dev/ttyUSB0"
 # endregion
 
 
@@ -41,6 +41,7 @@ class MqttHandler:
         # flags initialization
         self.flag_gps = 0
         self.flag_lantern = -1
+        self.flag_bms = 0
 
         self.init_mqtt(broker, port, topic)
 
@@ -79,7 +80,7 @@ class MqttHandler:
         self.tilt = 0
 
         try:
-            self.servo = ServoBus("/dev/ttyUSB0")
+            self.servo = ServoBus(SERVO_USB)
 
             self.servo.move_time_write(1, PAN_STANDBY_ANGLE, 2)
             self.servo.move_time_write(2, TILT_STANDBY_ANGLE, 2)
@@ -128,6 +129,7 @@ class MqttHandler:
         """
         self.flag_gps = msg.get("gps", 0)
         self.flag_lantern = msg.get("lantern", -1)
+        self.flag_bms = msg.get("bms", 0)
 
     def subscription_escolha(self, msg) -> None:
         """
@@ -226,6 +228,18 @@ class MqttHandler:
             self.client.publish(f"{self.topic}/escolha", json.dumps(message))
         except Exception as e:
             print(f"Publish GPS failed {e}")
+            
+    def publish_bms(self, bms) -> None:
+        """
+        Publish Daly BMS all data to MQTT broker.
+
+        Args:
+            bms (dict): Daly BMS all data
+        """
+        try:
+            self.client.publish(f"{self.topic}/bms", json.dumps(bms))
+        except Exception as e:
+            print(f"Publish BMS failed {e}")
 
     # endregion
 
