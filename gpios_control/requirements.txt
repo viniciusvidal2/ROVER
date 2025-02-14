@@ -6,3 +6,4 @@ requests==2.32.3
 Flask==3.1.0
 Flask-Cors==5.0.0
 dalybms==0.5.0
+psutil==7.0.0

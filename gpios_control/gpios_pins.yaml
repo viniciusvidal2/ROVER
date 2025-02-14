@@ -1,10 +1,10 @@
 bmp280:
   # motor 1
-  - name: T1
-    pin: D5
+  # - name: T1
+  #   pin: D5
   # motor 2
-  - name: T2
-    pin: D6
+  # - name: T2
+  #   pin: D6
   # motor 3
   # - name: T3
   #   pin: D3
@@ -16,7 +16,7 @@ bmp280:
   #   pin: D5
 dht22:
   # central
-  - name: T6
-    pin: D16
+  # - name: T6
+  #   pin: D16
 lantern:
   - pin: D25
