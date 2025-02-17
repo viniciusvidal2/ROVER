@@ -5,10 +5,7 @@ mosquitto -c /mosquitto/config/mosquitto.conf -d
 source /opt/ros/noetic/setup.bash
 source /home/rover/devel/setup.bash
 
-ENABLE_HARDWARE=${ENABLE_HARDWARE:-true}
-
-nohup roslaunch /home/rover/rover_bringup.launch \
-    enable_hardware:=${ENABLE_HARDWARE} &
+nohup roslaunch /home/rover/rover_bringup.launch &
 
 nohup python3 /home/rover/src/REST_API/scripts/app.py &
 echo "ROS environment is running"
@@ -22,4 +19,4 @@ DURATION=30
 # Construct the filename
 FILENAME="$SAVE_DIR/rosbag_debug"
 # Record the topics
-#rosbag record $TOPICS -o $FILENAME --split --duration=$DURATION
+rosbag record $TOPICS -o $FILENAME --split --duration=$DURATION
