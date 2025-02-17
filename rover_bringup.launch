@@ -6,7 +6,7 @@
     <arg name="tgt_component" default="1"/>
     <arg name="log_output" default="log"/>
     <arg name="fcu_protocol" default="v2.0"/>
-    <arg name="respawn_mavros" default="false"/>
+    <arg name="respawn_mavros" default="true"/>
     <arg name="sending_t" default="0.5"/>
     <arg name="max_dist" default="1"/>
     <arg name="corridor_width" default="1.2"/>
