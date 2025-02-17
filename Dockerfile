@@ -93,7 +93,25 @@ EXPOSE 1883 9001
 
 # Copy the packages to inside the docker and compile the ROS ones
 WORKDIR /home/rover/
-COPY . /home/rover/src/
+COPY camera_transmitter /home/rover/src/camera_transmitter
+COPY dwa_obstacle_avoidance /home/rover/src/dwa_obstacle_avoidance
+COPY dynamixel_controller /home/rover/src/dynamixel_controller
+COPY DynamixelSDK /home/rover/src/DynamixelSDK
+COPY FAST_LIO /home/rover/src/FAST_LIO
+COPY livox_ros_driver2 /home/rover/src/livox_ros_driver2
+COPY obstacle_avoidance /home/rover/src/obstacle_avoidance
+COPY ptc_scan_processing /home/rover/src/ptc_scan_processing
+COPY slam_packages /home/rover/src/slam_packages
+COPY vehicle_params /home/rover/src/vehicle_params
+# Build the packages
+RUN catkin build -j2
+
+# Copy the folders that are not ROS related
+COPY gpios_control /home/rover/src/gpios_control
+COPY pan_and_tilt /home/rover/src/pan_and_tilt
+COPY REST_API /home/rover/src/REST_API
+COPY temperature_sensors /home/rover/src/temperature_sensors
+
 # Make sure python scripts are executable
 RUN chmod +x /home/rover/src/camera_transmitter/scripts/*.py \
     /home/rover/src/obstacle_avoidance/scripts/*.py \
@@ -101,17 +119,17 @@ RUN chmod +x /home/rover/src/camera_transmitter/scripts/*.py \
     /home/rover/src/dynamixel_controller/scripts/*.py \
     /home/rover/src/REST_API/scripts/*.py \
     /home/rover/src/pan_and_tilt/*.py
-# Build the packages
-RUN catkin build -j2
 
 # Source the workspace
 RUN echo "source /home/rover/devel/setup.bash" >> /root/.bashrc
 RUN /bin/bash -c "source /home/rover/devel/setup.bash"
 
 # Copy the launch files and start script to home folder
+COPY ./connect_network.sh /home/rover/
 COPY ./rover_bringup.launch /home/rover/
 COPY ./start_docker.sh /home/rover/
 RUN chmod +x /home/rover/start_docker.sh
+RUN chmod +x /home/rover/connect_network.sh
 
 # Default command to run
 CMD [ "bash", "-c", "/home/rover/start_docker.sh && exec bash" ]
