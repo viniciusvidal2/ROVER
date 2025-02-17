@@ -140,6 +140,8 @@ class MqttHandler:
             msg (dict): JSON message containing deltaX and deltaY values
         """
         if "deltaX" in msg and "deltaY" in msg:
+            deltaX = msg.get("deltaX")
+            deltaY = msg.get("deltaY")
             if deltaX == 10000:
                 self.pan = 0
                 self.tilt = 0
