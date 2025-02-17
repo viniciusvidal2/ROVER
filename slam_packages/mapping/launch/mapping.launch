@@ -1,5 +1,6 @@
 <launch>
   <arg name="map_name" default="map_1"/>
+  <arg name="rviz" default="false"/>
 
   <!-- Preprocess Livox scans -->
   <rosparam command="load" file="$(find ptc_scan_processing)/config/params.yaml"/>
@@ -7,7 +8,7 @@
 
   <!-- FAST LIO for lidar odometry -->
   <include file="$(find fast_lio)/launch/mapping_mid360.launch">
-      <arg name="rviz" value="false"/>
+      <arg name="rviz" value="$(arg rviz)"/>
   </include>
 
   <!-- Load the YAML file with parameters -->
