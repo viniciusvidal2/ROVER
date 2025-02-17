@@ -62,48 +62,41 @@
         <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch"/>
     </group>
 
-    <!-- Preprocess Livox scans -->
-    <rosparam command="load" file="$(find ptc_scan_processing)/config/params.yaml"/>
+    <!-- If hardware is enabled, launch processing nodes -->
     <group if="$(arg enable_hardware)">
+        <!-- Preprocess Livox scans -->
+        <rosparam command="load" file="$(find ptc_scan_processing)/config/params.yaml"/>
         <node name="preprocess_lidar_scan_node" pkg="ptc_scan_processing" type="preprocess_lidar_scan_node" output="screen"/>
-    </group>
 
-    <!-- FAST LIO for lidar odometry and mapping -->
-    <group if="$(arg enable_hardware)">
+        <!-- FAST LIO for lidar odometry and mapping -->
         <include file="$(find fast_lio)/launch/mapping_mid360.launch">
             <arg name="rviz" value="false"/>
         </include>
-    </group>
     
-    <!-- Localization node and parameters -->
-    <rosparam command="load" file="$(find localization)/config/params.yaml"/>
-    <param name="map_data/home_relative_path" value="maps"/>
-    <param name="map_data/map_name" value="$(arg map_name)"/>
-    <group if="$(arg enable_hardware)">
+        <!-- Localization node and parameters -->
+        <rosparam command="load" file="$(find localization)/config/params.yaml"/>
+        <param name="map_data/home_relative_path" value="maps"/>
+        <param name="map_data/map_name" value="$(arg map_name)"/>
         <node pkg="localization" type="localization_node" name="localization_node" output="screen"/>
-    </group>
 
-    <!-- Mapping node and parameters -->
-    <rosparam command="load" file="$(find mapping)/config/params.yaml"/>
-    <param name="map_data/save_relative_path" value="maps"/>
-    <param name="map_data/map_name" value="$(arg map_name)"/>
-    <group if="$(arg enable_hardware)">
+        <!-- Mapping node and parameters -->
+        <rosparam command="load" file="$(find mapping)/config/params.yaml"/>
+        <param name="map_data/save_relative_path" value="maps"/>
+        <param name="map_data/map_name" value="$(arg map_name)"/>
         <node pkg="mapping" type="map_data_save_node" name="mapping_node" output="screen"/>
-    </group>
 
-    <!-- Generate obstacles point cloud and convert to laser scan format message for obstacle avoidance logic node -->
-    <group if="$(arg enable_hardware)">
+        <!-- Generate obstacles point cloud and convert to laser scan format message for obstacle avoidance logic node -->
         <node pkg="localization" type="obstacle_generator_node" name="obstacle_generator_node" output="screen"/>
         <node name="convert_ptc_laserscan_node" pkg="ptc_scan_processing" type="convert_ptc_laserscan_node" output="screen"/>
-    </group>
 
-    <!-- Obstacle avoidance algorithm -->
-    <!-- <node pkg="obstacle_avoidance" type="obstacle_avoidance_sc_node.py" name="obstacle_avoidance_sc_node">
-        <param name="sending_t" value="$(arg sending_t)"/>
-        <param name="max_dist" value="$(arg max_dist)"/>
-        <param name="corridor_width" value="$(arg corridor_width)"/>
-        <param name="turn_rate" value="$(arg turn_rate)"/>
-    </node> -->
-    <!-- <node pkg="dwa_obstacle_avoidance" type="obstacle_avoidance_fuzzy.py" name="obstacle_avoidance_fuzzy"/> -->
+        <!-- Obstacle avoidance algorithm -->
+        <!-- <node pkg="obstacle_avoidance" type="obstacle_avoidance_sc_node.py" name="obstacle_avoidance_sc_node">
+            <param name="sending_t" value="$(arg sending_t)"/>
+            <param name="max_dist" value="$(arg max_dist)"/>
+            <param name="corridor_width" value="$(arg corridor_width)"/>
+            <param name="turn_rate" value="$(arg turn_rate)"/>
+        </node> -->
+        <!-- <node pkg="dwa_obstacle_avoidance" type="obstacle_avoidance_fuzzy.py" name="obstacle_avoidance_fuzzy"/> -->
+    </group>
 
 </launch>
