@@ -18,9 +18,6 @@ import psutil
 # region Declarations and Definitions
 ############################################################################
 
-# Connection HTTP to REST API
-endpoint_rest = "http://127.0.0.1:5000"
-
 # CSV file to store temperature data
 csv_file = "temperature_data.csv"
 
@@ -78,8 +75,10 @@ def get_temperatures():
     global global_temperatures
     try:
         global_temperatures = global_bms.get_temperatures()
-        global_temperatures = {f"T{key}": value for key, value in global_temperatures.items()}
-        global_temperatures["TRPI"] = psutil.sensors_temperatures()['cpu_thermal'][0].current
+        global_temperatures = {f"T{key}": value for key,
+                               value in global_temperatures.items()}
+        global_temperatures["TRPI"] = psutil.sensors_temperatures()[
+            'cpu_thermal'][0].current
         return jsonify(global_temperatures)
     except Exception as e:
         print(f"Error temperatures BMS {e}")
@@ -117,7 +116,7 @@ def get_bms():
 
 def init_gpios(debug):
     global global_dht22, global_bmp280, global_spi, global_lantern, global_bms
-    
+
     try:
         global_bms.connect(BMS_USB)
     except Exception as e:
@@ -226,14 +225,13 @@ def main(debug: bool = False) -> None:
     #         time.sleep(10)
 
 
-
 # endregion
-
 if __name__ == "__main__":
-    main_thread = Thread(target=main, args=(False,), daemon=True)
-    main_thread.start()
-
+    # main_thread = Thread(target=main, args=(False,), daemon=True)
+    # main_thread.start()
+    init_gpios(False)
     app.run(host="0.0.0.0", port=5001)
-    
+
+    # When exiting the script, close connection properly
     if hasattr(global_bms, "serial") and global_bms.serial.is_open:
         global_bms.disconnect()
