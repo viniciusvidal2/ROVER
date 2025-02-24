@@ -10,6 +10,8 @@ from threading import Thread
 from time import sleep, time
 from mqtt_handler import MqttHandler
 import requests
+import os
+import shutil
 
 ############################################################################
 # region Declarations and Definitions
@@ -22,7 +24,8 @@ endpoint_gpios = "http://127.0.0.1:5001"
 global_mqtt = None
 MQTT_BROKER = "localhost"
 MQTT_PORT = 1883
-MQTT_TOPIC = "substations/SUB001/rovers/Rover-Argo-N-0"  # SUB001 e Rover-Argo-N-0 vão ser variáveis
+# SUB001 e Rover-Argo-N-0 vão ser variáveis
+MQTT_TOPIC = "substations/SUB001/rovers/Rover-Argo-N-0"
 TELEMETRY_INTERVAL = 2
 
 # Connection to ROS
@@ -92,9 +95,9 @@ def stop_mapping():
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
-        return jsonify({"status": 0, "message": "Mapping node stopped successfully"})
+        return jsonify({"status": 1, "message": "Mapping node stopped successfully"})
     except Exception as e:
-        return jsonify({"status": 1, "error": str(e)}), 500
+        return jsonify({"status": 0, "error": str(e)}), 500
 
 
 @app.route("/localization/start", methods=["POST"])
@@ -132,10 +135,10 @@ def stop_localization():
             stderr=subprocess.PIPE,
         )
         return jsonify(
-            {"status": 0, "message": "Localization node stopped successfully"}
+            {"status": 1, "message": "Localization node stopped successfully"}
         )
     except Exception as e:
-        return jsonify({"status": 1, "error": str(e)}), 500
+        return jsonify({"status": 0, "error": str(e)}), 500
 
 
 @app.route("/status_text", methods=["POST"])
@@ -144,9 +147,56 @@ def publish_status_text():
         # Sending status text with mavros for the rover to be relayed to the radio controller
         data = request.get_json()
         global_status_text_topic.publish(
-            roslibpy.Message({"severity": data["severity"], "text": data["text"]})
+            roslibpy.Message(
+                {"severity": data["severity"], "text": data["text"]})
         )
         return jsonify({"status": 1, "message": "Status text published successfully"})
+    except Exception as e:
+        return jsonify({"status": 0, "error": str(e)}), 500
+
+
+@app.route("/system/start_bag_record", methods=["POST"])
+def start_bag_record():
+    topics = "/livox/lidar /livox/imu /mavros/imu/data /mavros/setpoint_raw/target_global /mavros/state /mavros/global_position/global /mavros/global_position/compass_hdg /mavros/mission/waypoints /mavros/home_position/home"
+    duration = 30
+    save_dir = "/home/rover/bags_debug"
+    file_names = os.path.join(save_dir, "rosbag_debug")
+    try:
+        data = request.get_json()
+        if data:
+            file_prefix = data["bag_name"]
+            file_names = os.path.join(save_dir, file_prefix)
+        subprocess.Popen(
+            ["rosbag", "record", topics, "-o", file_names, "--split",
+                "--duration", duration, "__name:=rosbag_recorder"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        return jsonify({"status": 1, "message": "Bag record launched successfully"})
+    except Exception as e:
+        return jsonify({"status": 0, "error": str(e)}), 500
+    
+
+@app.route("/system/stop_bag_record", methods=["POST"])
+def stop_bag_record():
+    try:
+        subprocess.Popen(
+            ["rosnode", "kill", "/rosbag_recorder"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        return jsonify({"status": 1, "message": "Bag record stopped successfully"})
+    except Exception as e:
+        return jsonify({"status": 0, "error": str(e)}), 500
+    
+
+@app.route("/system/remove_map", methods=["POST"])
+def remove_map():
+    try:
+        data = request.get_json()
+        map_name = data["map_name"]
+        shutil.rmtree(f"/root/maps/{map_name}")
+        return jsonify({"status": 1, "message": "Map removed successfully"})
     except Exception as e:
         return jsonify({"status": 0, "error": str(e)}), 500
 
@@ -185,9 +235,36 @@ def get_gps_location_orientation() -> dict:
     )
 
 
+@app.route("/system/device_space", methods=["GET"])
+def get_device_space() -> dict:
+    try:
+        # Get how much of the space is still free, in GB
+        data = subprocess.check_output(["df", "-h"], text=True)
+        lines = data.split("\n")
+        output = "0"
+        for line in lines:
+            space, section = line.split()[3], line.split()[5]
+            if section == "/":
+                output = space
+                break
+        return jsonify({"status": 1, "message": output})
+    except Exception as e:
+        return jsonify({"status": 0, "error": str(e)}), 500
+
+
+@app.route("/system/maps_done", methods=["GET"])
+def get_maps_done() -> dict:
+    try:
+        # Get the maps that are already done
+        maps = sorted(os.listdir("/root/maps"))
+        return jsonify({"status": 1, "maps": maps})
+    except Exception as e:
+        return jsonify({"status": 0, "error": str(e)}), 500
+
 ############################################################################
 # region MQTT Functions
 ############################################################################
+
 
 def publish_telemetry():
     # TODO speed, status
@@ -234,12 +311,14 @@ def publishers() -> None:
                 last_telemetry = current_time
 
             if global_mqtt.flag_gps:
-                global_mqtt.publish_gps(global_gps_coordinates, global_compass_heading)
+                global_mqtt.publish_gps(
+                    global_gps_coordinates, global_compass_heading)
                 global_mqtt.flag_gps = 0
 
             if global_mqtt.flag_lantern != -1:
                 lantern_data = {"lantern": global_mqtt.flag_lantern}
-                _ = requests.post(f"{endpoint_gpios}/lantern/post", json=lantern_data)
+                _ = requests.post(
+                    f"{endpoint_gpios}/lantern/post", json=lantern_data)
                 global_mqtt.flag_lantern = -1
 
             if global_mqtt.flag_bms:
