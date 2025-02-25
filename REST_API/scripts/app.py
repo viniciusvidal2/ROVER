@@ -12,6 +12,7 @@ from mqtt_handler import MqttHandler
 import requests
 import os
 import shutil
+import re
 
 ############################################################################
 # region Declarations and Definitions
@@ -175,7 +176,7 @@ def start_bag_record():
         return jsonify({"status": 1, "message": "Bag record launched successfully"})
     except Exception as e:
         return jsonify({"status": 0, "error": str(e)}), 500
-    
+
 
 @app.route("/system/stop_bag_record", methods=["POST"])
 def stop_bag_record():
@@ -188,7 +189,7 @@ def stop_bag_record():
         return jsonify({"status": 1, "message": "Bag record stopped successfully"})
     except Exception as e:
         return jsonify({"status": 0, "error": str(e)}), 500
-    
+
 
 @app.route("/system/remove_map", methods=["POST"])
 def remove_map():
@@ -241,13 +242,19 @@ def get_device_space() -> dict:
         # Get how much of the space is still free, in GB
         data = subprocess.check_output(["df", "-h"], text=True)
         lines = data.split("\n")
-        output = "0"
         for line in lines:
             space, section = line.split()[3], line.split()[5]
             if section == "/":
-                output = space
                 break
-        return jsonify({"status": 1, "message": output})
+        match = re.match(r"(\d+\.?\d*)([A-Za-z])", space)
+        if match:
+            number = float(match.group(1))
+            unit = match.group(2)
+        BAG_MB_PER_SEC = 3.46  # [MB/s]
+        bag_minutes_left = number * 1024 / BAG_MB_PER_SEC / 60
+        if unit != "G":
+            bag_minutes_left /= 1024
+        return jsonify({"status": 1, "number": number, "unit": unit, "bag_minutes_left": bag_minutes_left})
     except Exception as e:
         return jsonify({"status": 0, "error": str(e)}), 500
 
