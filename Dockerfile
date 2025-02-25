@@ -108,17 +108,14 @@ RUN catkin build -j2
 
 # Copy the folders that are not ROS related
 COPY gpios_control /home/rover/src/gpios_control
-COPY pan_and_tilt /home/rover/src/pan_and_tilt
 COPY docker_internal_rest_api /home/rover/src/docker_internal_rest_api
-COPY temperature_sensors /home/rover/src/temperature_sensors
 
 # Make sure python scripts are executable
 RUN chmod +x /home/rover/src/camera_transmitter/scripts/*.py \
     /home/rover/src/obstacle_avoidance/scripts/*.py \
     /home/rover/src/dwa_obstacle_avoidance/scripts/*.py \
     /home/rover/src/dynamixel_controller/scripts/*.py \
-    /home/rover/src/docker_internal_rest_api/*.py \
-    /home/rover/src/pan_and_tilt/*.py
+    /home/rover/src/docker_internal_rest_api/*.py
 
 # Source the workspace
 RUN echo "source /home/rover/devel/setup.bash" >> /root/.bashrc
