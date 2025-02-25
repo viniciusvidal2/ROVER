@@ -1,27 +1,21 @@
 #include "mapping/map_data_save_node.h"
 
-MapDataSaver::MapDataSaver(ros::NodeHandle &nh)
+MapDataSaver::MapDataSaver(ros::NodeHandle &nh, const std::string map_data_path)
 {
     // Parameters
-    std::string map_name;
     ros::NodeHandle pnh("~");
     pnh.param("/debug/enable", debug_, false);
-    pnh.param("/map_data/save_relative_path", folder_save_path_, static_cast<std::string>("maps"));
-    pnh.param("/map_data/map_name", map_name, static_cast<std::string>("map"));
     pnh.param("/mapping/cloud_save_interval", cloud_save_interval_, 10);
     pnh.param("/mapping/min_counter_to_account_for_velocity", min_counter_to_account_for_velocity_, 100);
     pnh.param("/mapping/min_velocity_to_count_as_movement", min_velocity_to_count_as_movement_, 0.1f);
-
-    // Create a folder to store the recorded map
-    folder_save_path_ = std::string(std::getenv("HOME")) + "/" + folder_save_path_ + "/" + map_name;
-    FileManipulation::createDirectory(folder_save_path_);
+    map_data_path_ = map_data_path;
 
     // Create the txt file to save the poses received by odometry
-    odometry_file_path_ = folder_save_path_ + "/odometry_positions.txt";
+    odometry_file_path_ = map_data_path_ + "/odometry_positions.txt";
     FileManipulation::createTextFile(odometry_file_path_, "tx ty tz\n");
 
     // Create the txt file to save the GPS data plus the IMU data for poses
-    gps_imu_poses_file_path_ = folder_save_path_ + "/gps_imu_poses.txt";
+    gps_imu_poses_file_path_ = map_data_path_ + "/gps_imu_poses.txt";
     FileManipulation::createTextFile(gps_imu_poses_file_path_, "lat lon alt y\n");
 
     // Initialize the point cloud to save the map
@@ -116,7 +110,7 @@ void MapDataSaver::mappingCallback(const sensor_msgs::PointCloud2::ConstPtr &poi
     // Save the point cloud tile if the counter reaches the save interval
     if (cloud_counter_ % cloud_save_interval_ == 0)
     {
-        std::string cloud_file_path = folder_save_path_ + "/cloud_" + std::to_string(cloud_counter_) + ".pcd";
+        std::string cloud_file_path = map_data_path_ + "/cloud_" + std::to_string(cloud_counter_) + ".pcd";
         pcl::io::savePCDFileBinary(cloud_file_path, *cloud_map_frame_);
         if (debug_)
         {
@@ -149,7 +143,7 @@ void MapDataSaver::onShutdown()
     // Save the final point cloud, if we have one left that was not saved
     if (cloud_map_frame_->size() > 0)
     {
-        std::string cloud_file_path = folder_save_path_ + "/cloud_" + std::to_string(cloud_counter_) + ".pcd";
+        std::string cloud_file_path = map_data_path_ + "/cloud_" + std::to_string(cloud_counter_) + ".pcd";
         pcl::io::savePCDFileBinary(cloud_file_path, *cloud_map_frame_);
         if (debug_)
         {

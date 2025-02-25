@@ -38,7 +38,9 @@ class MapDataSaver
 {
 public:
     /// @brief Constructor
-    MapDataSaver(ros::NodeHandle &nh);
+    /// @param nh The node handle
+    /// @param map_data_path The path to save the map data
+    MapDataSaver(ros::NodeHandle &nh, const std::string map_data_path);
 
 private:
     /// @brief The mapping callback
@@ -70,7 +72,7 @@ private:
     std::shared_ptr<message_filters::Synchronizer<SyncPolicy>> sync_;
 
     /// @brief Paths
-    std::string folder_save_path_{std::string(std::getenv("HOME")) + "/Desktop/map_data"};
+    std::string map_data_path_{std::string(std::getenv("HOME")) + "/maps/map"};
     std::string odometry_file_path_;
     std::string gps_imu_poses_file_path_;
 
