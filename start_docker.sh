@@ -7,7 +7,7 @@ source /home/rover/devel/setup.bash
 
 nohup roslaunch /home/rover/rover_bringup.launch &
 
-nohup python3 /home/rover/src/REST_API/scripts/app.py &
+nohup python3 /home/rover/src/docker_internal_rest_api/app.py &
 echo "ROS environment is running"
 
 # Directory to save the bag files
