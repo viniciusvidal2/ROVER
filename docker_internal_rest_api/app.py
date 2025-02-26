@@ -184,14 +184,11 @@ def start_bag_record():
         command = ["rosbag", "record", "-o", file_names, "--split",
                 "--duration", duration, "__name:=rosbag_recorder"]
         command[2:2] = topics
-        process = subprocess.Popen(
+        subprocess.Popen(
             command,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
-        stdout, stderr = process.communicate()
-        print("STDOUT:", stdout.decode())
-        print("STDERR:", stderr.decode())
         return jsonify({"status": 1, "message": "Bag record launched successfully"})
     except Exception as e:
         return jsonify({"status": 0, "error": str(e)}), 500
