@@ -65,7 +65,7 @@ cors = CORS(app)
 @app.route("/mapping/start", methods=["POST"])
 def start_mapping():
     # Kill existing process if running
-    subprocess.run(["rosnode", "kill", "/mapping_node"],
+    subprocess.run(["rosnode", "kill", "/mapping_node", "/lidar_odometry_node", "/preprocess_lidar_scan_node"],
                    stderr=subprocess.DEVNULL)
     # Start new mapping process
     try:
@@ -132,7 +132,7 @@ def start_localization():
 def stop_localization():
     try:
         subprocess.Popen(
-            ["rosnode", "kill", "/localization_node", "/lidar_odometry_node"],
+            ["rosnode", "kill", "/localization_node", "/lidar_odometry_node", "/preprocess_lidar_scan_node", "/obstacle_generator_node"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
