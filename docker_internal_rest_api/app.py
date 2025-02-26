@@ -70,23 +70,19 @@ def start_mapping():
     # Start new mapping process
     try:
         data = request.get_json()
-        if data is None:
-            subprocess.Popen(
-                ["roslaunch", "mapping", "mapping.launch"],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
-        else:
-            subprocess.Popen(
-                [
-                    "roslaunch",
-                    "mapping",
-                    "mapping.launch",
-                    "map_name:=" + data["map_name"],
-                ],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
+        map_name = "map_1"
+        if data:
+            map_name = data["map_name"]
+        subprocess.Popen(
+            [
+                "roslaunch",
+                "mapping",
+                "mapping.launch",
+                f"map_name:={map_name}",
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
         return jsonify({"status": 1, "message": "Mapping launched successfully"})
     except Exception as e:
         return jsonify({"status": 0, "error": str(e)}), 500
@@ -96,7 +92,7 @@ def start_mapping():
 def stop_mapping():
     try:
         subprocess.Popen(
-            ["rosnode", "kill", "/mapping_node", "/lidar_odometry_node"],
+            ["rosnode", "kill", "/mapping_node", "/lidar_odometry_node", "/preprocess_lidar_scan_node"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
@@ -108,28 +104,25 @@ def stop_mapping():
 @app.route("/localization/start", methods=["POST"])
 def start_localization():
     # Kill existing process if running
-    subprocess.run(["rosnode", "kill", "/localization_node"],
+    subprocess.run(["rosnode", "kill", "/localization_node", "/lidar_odometry_node", "/preprocess_lidar_scan_node", "/obstacle_generator_node"],
                    stderr=subprocess.DEVNULL)
     # Start new localization process
     try:
         data = request.get_json()
-        if data is None:
-            subprocess.Popen(
-                ["roslaunch", "localization", "localization.launch"],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
-        else:
-            subprocess.Popen(
-                [
-                    "roslaunch",
-                    "localization",
-                    "localization.launch",
-                    "map_name:=" + data["map_name"],
-                ],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
+        data = request.get_json()
+        map_name = "map_1"
+        if data:
+            map_name = data["map_name"]
+        subprocess.Popen(
+            [
+                "roslaunch",
+                "localization",
+                "localization.launch",
+                f"map_name:={map_name}",
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
         return jsonify({"status": 1, "message": "Localization launched successfully"})
     except Exception as e:
         return jsonify({"status": 0, "error": str(e)}), 500
