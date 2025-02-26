@@ -281,6 +281,19 @@ def get_mapping_status() -> dict:
     except Exception as e:
         return jsonify({"status": 0, "error": str(e)}), 500
 
+
+@app.route("/system/rosbag_status", methods=["GET"])
+def get_rosbag_status() -> dict:
+    try:
+        # Get the status of the mapping node
+        data = subprocess.check_output(["rosnode", "list"], text=True)
+        if "/rosbag_recorder" in data:
+            return jsonify({"status": 1, "rosbag_status": 1})
+        else:
+            return jsonify({"status": 1, "rosbag_status": 0})
+    except Exception as e:
+        return jsonify({"status": 0, "error": str(e)}), 500
+
 ############################################################################
 # region MQTT Functions
 ############################################################################
