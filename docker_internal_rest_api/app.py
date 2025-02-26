@@ -64,6 +64,9 @@ cors = CORS(app)
 
 @app.route("/mapping/start", methods=["POST"])
 def start_mapping():
+    # Kill existing process if running
+    subprocess.run(["rosnode", "kill", "/mapping_node"], stderr=subprocess.DEVNULL)
+    # Start new mapping process
     try:
         data = request.get_json()
         if data is None:
@@ -103,6 +106,9 @@ def stop_mapping():
 
 @app.route("/localization/start", methods=["POST"])
 def start_localization():
+    # Kill existing process if running
+    subprocess.run(["rosnode", "kill", "/localization_node"], stderr=subprocess.DEVNULL)
+    # Start new localization process
     try:
         data = request.get_json()
         if data is None:
@@ -158,6 +164,9 @@ def publish_status_text():
 
 @app.route("/system/start_bag_record", methods=["POST"])
 def start_bag_record():
+    # Kill existing rosbag process if running
+    subprocess.run(["rosnode", "kill", "/rosbag_recorder"], stderr=subprocess.DEVNULL)
+    # Start new rosbag process
     topics = "/livox/lidar /livox/imu /mavros/imu/data /mavros/setpoint_raw/target_global /mavros/state /mavros/global_position/global /mavros/global_position/compass_hdg /mavros/mission/waypoints /mavros/home_position/home"
     duration = "30"
     save_dir = "/home/rover/bags_debug"
