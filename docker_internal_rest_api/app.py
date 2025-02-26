@@ -52,6 +52,36 @@ global_status_text_topic = roslibpy.Topic(
 )
 
 
+def create_destination_folder(folder: str) -> str:
+    """Certifies that the name does not exist, and if it does adapt it not to have the same name
+
+    Args:
+        folder (str): original folder name
+
+    Returns:
+        str: new folder name
+    """
+    i = 1
+    while os.path.exists(folder):
+        folder = f"{folder}_{i}"
+        i += 1
+    return folder
+
+
+def clear_folder(folder_path: str) -> None:
+    """Clears the folder contents, but not the folder itself
+
+    Args:
+        folder_path (str): path to the folder
+    """
+    for item in os.listdir(folder_path):
+        item_path = os.path.join(folder_path, item)
+        if os.path.isfile(item_path) or os.path.islink(item_path):
+            os.unlink(item_path)  # Remove file or symbolic link
+        elif os.path.isdir(item_path):
+            shutil.rmtree(item_path)  # Remove directory and its contents
+
+
 # Init Flask app
 app = Flask(__name__)
 cors = CORS(app)
@@ -92,7 +122,8 @@ def start_mapping():
 def stop_mapping():
     try:
         subprocess.Popen(
-            ["rosnode", "kill", "/mapping_node", "/lidar_odometry_node", "/preprocess_lidar_scan_node"],
+            ["rosnode", "kill", "/mapping_node",
+                "/lidar_odometry_node", "/preprocess_lidar_scan_node"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
@@ -132,7 +163,8 @@ def start_localization():
 def stop_localization():
     try:
         subprocess.Popen(
-            ["rosnode", "kill", "/localization_node", "/lidar_odometry_node", "/preprocess_lidar_scan_node", "/obstacle_generator_node"],
+            ["rosnode", "kill", "/localization_node", "/lidar_odometry_node",
+                "/preprocess_lidar_scan_node", "/obstacle_generator_node"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
@@ -175,7 +207,7 @@ def start_bag_record():
             file_prefix = data["bag_name"]
         file_names = os.path.join(save_dir, file_prefix)
         command = ["rosbag", "record", "-o", file_names, "--split",
-                "--duration", duration, "__name:=rosbag_recorder"]
+                   "--duration", duration, "__name:=rosbag_recorder"]
         command[2:2] = topics
         subprocess.Popen(
             command,
@@ -210,6 +242,32 @@ def remove_map():
     except Exception as e:
         return jsonify({"status": 0, "error": str(e)}), 500
 
+
+@app.route("/system/copy_data_usb", methods=["POST"])
+def copy_data_usb():
+    MEDIA_FOLDER = "/home/rover/media"
+    MAPS_FOLDER = "/root/maps"
+    BAGS_FOLDER = "/home/rover/bags_debug"
+    # List the usb devices in MEDIA FOLDER
+    devices = os.listdir(MEDIA_FOLDER)
+    if len(devices) == 0:
+        return jsonify({"status": 0, "error": "No USB devices found"}), 500
+    # Copy the data to all the devices
+    try:
+        for device in devices:
+            destination_maps_folder = create_destination_folder(
+                f"{MEDIA_FOLDER}/{device}/maps")
+            destination_bags_folder = create_destination_folder(
+                f"{MEDIA_FOLDER}/{device}/bags_debug")
+            shutil.copytree(MAPS_FOLDER, destination_maps_folder)
+            shutil.copytree(BAGS_FOLDER, destination_bags_folder)
+        # Remove the content in the maps and bags_debug folders
+        # We must not delete the folders
+        clear_folder(MAPS_FOLDER)
+        clear_folder(BAGS_FOLDER)
+        return jsonify({"status": 1, "message": "Data transfered to USB successfully"})
+    except Exception as e:
+        return jsonify({"status": 0, "error": str(e)}), 500
 
 # endregion
 ############################################################################
@@ -303,6 +361,7 @@ def get_rosbag_status() -> dict:
     except Exception as e:
         return jsonify({"status": 0, "error": str(e)}), 500
 
+# endregion
 ############################################################################
 # region MQTT Functions
 ############################################################################

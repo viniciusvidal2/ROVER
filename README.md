@@ -200,6 +200,7 @@ sudo docker run --restart=always -itd \
 -v /tmp/.X11-unix:/tmp/.X11-unix \
 -v /home/rover/maps:/root/maps \
 -v /home/rover/bags_debug:/home/rover/bags_debug \
+-v /media/rover:/home/rover/media \
 --network host \
 --name rover_container \
 rover_image:0.1
