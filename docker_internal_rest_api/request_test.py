@@ -29,8 +29,11 @@ def build_action_data(action: str, server_url: str) -> Tuple[str, dict]:
         data = {"map_name": "test_map"}
     elif action == "/localization/stop":
         data = {}
+    elif action == "/system/copy_data_usb":
+        data = {}
 
     return endpoint, data
+
 
 def send_request(remote_ip: str,  action: "str", port: str = "5000") -> None:
     """Send a POST request to a remote server to test the rest api in the rover
@@ -50,7 +53,8 @@ def send_request(remote_ip: str,  action: "str", port: str = "5000") -> None:
         if response.status_code == 200:
             print(f"Success: {response.json().get('status')}")
         else:
-            print(f"Failed: {response.status_code}, {response.json().get('error')}")
+            print(
+                f"Failed: {response.status_code}, {response.json().get('error')}")
     except Exception as e:
         print(f"Error while making request: {e}")
 
@@ -64,7 +68,8 @@ if __name__ == "__main__":
     # action = "/mapping/start"
     # action = "/mapping/stop"
     # action = "/localization/start"
-    action = "/localization/stop"
+    # action = "/localization/stop"
+    action = "/system/copy_data_usb"
 
     # Call the function with parsed arguments
     send_request(remote_ip=remote_ip, port=port, action=action)
