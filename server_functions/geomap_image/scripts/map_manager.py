@@ -5,6 +5,8 @@ import os
 import cv2
 import msgpack
 import utm
+import matplotlib.cm as cm
+import matplotlib.colors as mcolors
 
 
 class MapManager:
@@ -55,7 +57,7 @@ class MapManager:
             print(
                 "NO VALID READINGS FROM THE MAP, NO VALID TRANSFORMATION TO GEOREF DATA.")
             return np.eye(4)
-        
+
         # Lets add the data for each 0.5 meters traveled
         valid_readings = list()
         traveled_distance = 0
@@ -78,7 +80,7 @@ class MapManager:
             print(
                 "NO VALID READINGS FROM THE MAP, NO VALID TRANSFORMATION TO GEOREF DATA.")
             return np.eye(4)
-        
+
         # Use Horn method to calculate the rotation and translation between the two sets of points
         world_T_map = self.similarity_transform_map_to_world(valid_readings)
         return world_T_map
@@ -134,7 +136,11 @@ class MapManager:
         for filename in os.listdir(self.map_folder):
             if filename.endswith(".pcd") and filename.startswith("cloud"):
                 file_path = os.path.join(self.map_folder, filename)
-                map_point_cloud += o3d.io.read_point_cloud(file_path)
+                current_cloud = o3d.io.read_point_cloud(file_path)
+                colors_rgb = np.array([self.apply_colormap(intensity=intensity, colormap="seismic")
+                                       for intensity in np.array(current_cloud.colors)[:, 0]])
+                current_cloud.colors = o3d.utility.Vector3dVector(colors_rgb)
+                map_point_cloud += current_cloud
         return map_point_cloud
 
     def generate_map_bev(self, ptc_map_frame: o3d.geometry.PointCloud, world_T_map: np.ndarray) -> Tuple[np.ndarray, Dict]:
@@ -183,7 +189,7 @@ class MapManager:
 
             # Only project if the point ir higher than the previous one, or no projection is in the pixel yet
             if map_z[v, u] == 0 or p_map[2] > map_z[v, u]:
-                map_bev[v, u] = np.uint8(p_color[0] * 255)
+                map_bev[v, u] = np.uint8(np.linalg.norm(p_color) * 255)
                 map_z[v, u] = p_map[2]
 
                 # Save to map dictionary
@@ -277,7 +283,7 @@ class MapManager:
         smoothed_image = self.smooth_fill_image(
             image=image, kernel_size=kernel_size, iterations=iterations)
         return cv2.equalizeHist(smoothed_image)
-    
+
     def similarity_transform_map_to_world(self, valid_readings: list) -> np.ndarray:
         """Horn method to calculate the rotation and translation between two sets of points
 
@@ -314,3 +320,23 @@ class MapManager:
         world_T_map[:3, :3] = world_R_map
         world_T_map[:3, 3] = world_t_map
         return world_T_map
+
+    def apply_colormap(self, intensity: int, colormap: str = "viridis") -> np.ndarray:
+        """Maps an intensity value (0-255) to an RGB color using the specified colormap.
+
+        Args:
+            intensity (int): Intensity value in the range [0, 255].
+            colormap (str): Colormap name ('viridis' or 'seismic'). Defaults to 'viridis'.
+
+        Returns:
+            np.ndarray: RGB color in the range [0, 1] (compatible with Open3D)
+        """
+        if colormap not in cm.cmap_d:
+            raise ValueError(
+                f"Invalid colormap '{colormap}'. Choose 'viridis' or 'seismic'.")
+
+        # Get colormap function
+        cmap = cm.get_cmap(colormap)
+
+        # Apply colormap and return RGB values (ignoring alpha channel)
+        return np.array(cmap(intensity)[:3])
