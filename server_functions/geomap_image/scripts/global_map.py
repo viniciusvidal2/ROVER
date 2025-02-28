@@ -51,12 +51,12 @@ def main(maps_folder: "str") -> None:
             robot_map_manager = MapManager(
                 map_name=map_name, folder=map_folder, imsize=desired_map_size)
             # Call the point cloud and bev generations
-            map_ptc = robot_map_manager.generateMapPtc()
-            world_T_map = robot_map_manager.computeWorldTMap()
-            map_bev, map_coords_json = robot_map_manager.generateMapBev(
+            map_ptc = robot_map_manager.generate_map_ptc()
+            world_T_map = robot_map_manager.compute_world_T_map()
+            map_bev, map_coords_json = robot_map_manager.generate_map_bev(
                 ptc_map_frame=map_ptc, world_T_map=world_T_map)
             # Save the files
-            robot_map_manager.saveMap(
+            robot_map_manager.save_map(
                 map_bev=map_bev, map_ptc=map_ptc, map_coords=map_coords_json, world_T_map=world_T_map)
 
         # Set the reference transformation if it is the first map
@@ -73,11 +73,11 @@ def main(maps_folder: "str") -> None:
     print("Creating global map ...")
     global_map_manager = MapManager(
         map_name=global_map_name, folder=global_map_folder, imsize=[1080, 1920])
-    global_map_bev, global_map_coords_json = global_map_manager.generateMapBev(
+    global_map_bev, global_map_coords_json = global_map_manager.generate_map_bev(
         ptc_map_frame=global_map_point_cloud, world_T_map=world_T_map_ref)
 
     print("Saving global map ...")
-    global_map_manager.saveMap(map_bev=global_map_bev, map_ptc=global_map_point_cloud,
+    global_map_manager.save_map(map_bev=global_map_bev, map_ptc=global_map_point_cloud,
                                map_coords=global_map_coords_json, world_T_map=world_T_map_ref)
     print("Global map created and saved!")
 

@@ -20,7 +20,7 @@ class MapManager:
         self.map_folder = folder
         self.image_size = imsize
 
-    def computeWorldTMap(self) -> np.ndarray:
+    def compute_world_T_map(self) -> np.ndarray:
         """Computes the transformation from map frame to world frame using mapped data for 
         compass yaw and UTM coordinates at the map origin
 
@@ -45,46 +45,86 @@ class MapManager:
                 tx, ty, tz = map(float, lines[i].split())
                 odom_list.append((tx, ty, tz))
 
-        # Filters which values are going in the math
-        valid_readings = list()
-        max_values = 50
-        for gps, odom in zip(gps_list, odom_list):
-            if gps[2] < 0:
-                continue
-            if np.linalg.norm(np.array([odom[:-1]])) > 0.10:
-                break
-            valid_readings.append({"gps": gps, "odom": odom})
-            if len(valid_readings) >= max_values:
-                break
-        if len(valid_readings) == 0:
+        # Check if we have travelled more than 3 meters, otherwise we are not creating anything
+        # Raise an error if so
+        traveled_distance = 0
+        for i in range(1, len(odom_list)):
+            traveled_distance += np.linalg.norm(
+                np.array(odom_list[i]) - np.array(odom_list[i-1]))
+        if traveled_distance < 3:
             print(
                 "NO VALID READINGS FROM THE MAP, NO VALID TRANSFORMATION TO GEOREF DATA.")
             return np.eye(4)
-
-        # Get average translation from utm coordinates, average yaw in radians
-        world_t_map = np.zeros(3)  # [m]
-        world_yaw_map = 0  # [RAD]
-        for data in valid_readings:
-            lat, lon, alt, yaw = data["gps"]
-            utm_e, utm_n, _, _ = utm.from_latlon(lat, lon)
-            world_t_map += np.array([utm_e, utm_n, alt])
-            world_yaw_map += yaw
-        world_t_map /= len(valid_readings)
-        world_yaw_map /= len(valid_readings)
-        # Generate the transformation matrix and return
-        cos_yaw = np.cos(world_yaw_map)
-        sin_yaw = np.sin(world_yaw_map)
-        world_R_map = np.array([
-            [cos_yaw, -sin_yaw, 0],
-            [sin_yaw,  cos_yaw, 0],
-            [0,          0,     1]
-        ])
-        world_T_map = np.eye(4)
-        world_T_map[:3, :3] = world_R_map
-        world_T_map[:3, 3] = world_t_map
+        
+        # Lets add the data for each 0.5 meters traveled
+        valid_readings = list()
+        traveled_distance = 0
+        for gps, odom in zip(gps_list, odom_list):
+            # If we have negative altitude this reading is not valid
+            if gps[2] < 0:
+                continue
+            utm_e, utm_n, _, _ = utm.from_latlon(gps[0], gps[1])
+            gps_utm = np.array([utm_e, utm_n, gps[2]])
+            if len(valid_readings) == 0:
+                valid_readings.append({"gps": gps_utm, "odom": odom})
+                continue
+            traveled_distance += np.linalg.norm(
+                np.array(odom[:-1]) - np.array(valid_readings[-1]["odom"][:-1]))
+            if traveled_distance >= 0.5:
+                valid_readings.append({"gps": gps_utm, "odom": odom})
+                traveled_distance = 0
+        # If less than 4 readings, we are not creating anything
+        if len(valid_readings) < 4:
+            print(
+                "NO VALID READINGS FROM THE MAP, NO VALID TRANSFORMATION TO GEOREF DATA.")
+            return np.eye(4)
+        
+        # Use Horn method to calculate the rotation and translation between the two sets of points
+        world_T_map = self.similarity_transform_map_to_world(valid_readings)
         return world_T_map
 
-    def generateMapPtc(self) -> o3d.geometry.PointCloud:
+        ######################## COMPASS SECTION, LEFT FOR STUDY PURPOSES ########################
+        # # Filters which values are going in the math
+        # valid_readings = list()
+        # max_values = 50
+        # for gps, odom in zip(gps_list, odom_list):
+        #     if gps[2] < 0:
+        #         continue
+        #     if np.linalg.norm(np.array([odom[:-1]])) > 0.10:
+        #         break
+        #     valid_readings.append({"gps": gps, "odom": odom})
+        #     if len(valid_readings) >= max_values:
+        #         break
+        # if len(valid_readings) == 0:
+        #     print(
+        #         "NO VALID READINGS FROM THE MAP, NO VALID TRANSFORMATION TO GEOREF DATA.")
+        #     return np.eye(4)
+
+        # # Get average translation from utm coordinates, average yaw in radians
+        # world_t_map = np.zeros(3)  # [m]
+        # world_yaw_map = 0  # [RAD]
+        # for data in valid_readings:
+        #     lat, lon, alt, yaw = data["gps"]
+        #     utm_e, utm_n, _, _ = utm.from_latlon(lat, lon)
+        #     world_t_map += np.array([utm_e, utm_n, alt])
+        #     world_yaw_map += yaw
+        # world_t_map /= len(valid_readings)
+        # world_yaw_map /= len(valid_readings)
+        # # Generate the transformation matrix and return
+        # cos_yaw = np.cos(world_yaw_map)
+        # sin_yaw = np.sin(world_yaw_map)
+        # world_R_map = np.array([
+        #     [cos_yaw, -sin_yaw, 0],
+        #     [sin_yaw,  cos_yaw, 0],
+        #     [0,          0,     1]
+        # ])
+        # world_T_map = np.eye(4)
+        # world_T_map[:3, :3] = world_R_map
+        # world_T_map[:3, 3] = world_t_map
+        # return world_T_map
+        ######################## COMPASS SECTION, LEFT FOR STUDY PURPOSES ########################
+
+    def generate_map_ptc(self) -> o3d.geometry.PointCloud:
         """Reads all the point cloud tiles and returns the entire map cloud
 
         Returns:
@@ -97,7 +137,7 @@ class MapManager:
                 map_point_cloud += o3d.io.read_point_cloud(file_path)
         return map_point_cloud
 
-    def generateMapBev(self, ptc_map_frame: o3d.geometry.PointCloud, world_T_map: np.ndarray) -> Tuple[np.ndarray, Dict]:
+    def generate_map_bev(self, ptc_map_frame: o3d.geometry.PointCloud, world_T_map: np.ndarray) -> Tuple[np.ndarray, Dict]:
         """Generates the map birds eye view image, along with georeferenced data
 
         Args:
@@ -153,7 +193,7 @@ class MapManager:
                 map_coords[key] = coords
 
         # The coordinates that still contain zeros in Z image should be filled as much as possible
-        map_z = self.smoothFillImage(
+        map_z = self.smooth_fill_image(
             image=map_z, kernel_size=7, iterations=5)
         # Go looking for missing utm data, and fill in with an approximation based on the pixel value
         for v in range(map_bev.shape[0]):
@@ -173,12 +213,12 @@ class MapManager:
                                        "utm_n": utm_n, "alt": alt}
 
         # Apply morphological operations and light enhancement for the BEV map
-        map_bev = self.enhanceImageQuality(
+        map_bev = self.enhance_image_quality(
             image=map_bev, kernel_size=3, iterations=1)
 
         return map_bev, map_coords
 
-    def saveMap(self, map_bev: np.ndarray, map_ptc: o3d.geometry.PointCloud, map_coords: dict, world_T_map: np.ndarray) -> None:
+    def save_map(self, map_bev: np.ndarray, map_ptc: o3d.geometry.PointCloud, map_coords: dict, world_T_map: np.ndarray) -> None:
         """Saves the map data
 
         Args:
@@ -187,9 +227,6 @@ class MapManager:
             map_coords (dict): map georef data, saved as msgpack
             world_T_map (np.ndarray): map to world frames transformation, saved as npy
         """
-        # Rover name from the code
-        map_name = "map_" + str(self.map_name)
-
         # Save the BEV image
         if len(map_bev > 0):
             bev_path = os.path.join(self.map_folder, self.map_name + ".png")
@@ -212,7 +249,7 @@ class MapManager:
             self.map_folder, self.map_name + ".npy")
         np.save(world_T_map_path, world_T_map)
 
-    def smoothFillImage(self, image: np.ndarray, kernel_size: int, iterations: int) -> np.ndarray:
+    def smooth_fill_image(self, image: np.ndarray, kernel_size: int, iterations: int) -> np.ndarray:
         """Smooth float image to fill in some zeros
 
         Args:
@@ -226,7 +263,7 @@ class MapManager:
         kernel = np.ones((kernel_size, kernel_size), np.uint8)
         return cv2.dilate(image, kernel, iterations=iterations)
 
-    def enhanceImageQuality(self, image: np.ndarray, kernel_size: int, iterations: int) -> np.ndarray:
+    def enhance_image_quality(self, image: np.ndarray, kernel_size: int, iterations: int) -> np.ndarray:
         """Improve image quality with operations
 
         Args:
@@ -237,6 +274,43 @@ class MapManager:
         Returns:
             np.ndarray: improved image
         """
-        smoothed_image = self.smoothFillImage(
+        smoothed_image = self.smooth_fill_image(
             image=image, kernel_size=kernel_size, iterations=iterations)
         return cv2.equalizeHist(smoothed_image)
+    
+    def similarity_transform_map_to_world(self, valid_readings: list) -> np.ndarray:
+        """Horn method to calculate the rotation and translation between two sets of points
+
+        Args:
+            valid_readings (list): list of dictionaries with gps and odom data
+
+        Returns:
+            np.ndarray: homogeneous transformation matrix
+        """
+        pts_gps = np.array([data["gps"] for data in valid_readings])
+        pts_map = np.array([data["odom"] for data in valid_readings])
+
+        # Center the points
+        centroid_map = np.mean(pts_map, axis=0)
+        centroid_gps = np.mean(pts_gps, axis=0)
+        map_centered = pts_map - centroid_map
+        gps_centered = pts_gps - centroid_gps
+
+        # Compute optimal rotation
+        H = np.dot(map_centered.T, gps_centered)
+        U, _, Vt = np.linalg.svd(H)
+        world_R_map = np.dot(Vt.T, U.T)
+
+        # Ensure a right-handed coordinate system
+        if np.linalg.det(world_R_map) < 0:
+            Vt[-1, :] *= -1
+            world_R_map = np.dot(Vt.T, U.T)
+
+        # Compute optimal translation
+        world_t_map = centroid_gps - np.dot(world_R_map, centroid_map)
+
+        # Generate the transformation matrix and return
+        world_T_map = np.eye(4)
+        world_T_map[:3, :3] = world_R_map
+        world_T_map[:3, 3] = world_t_map
+        return world_T_map
