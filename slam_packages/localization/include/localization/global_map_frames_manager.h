@@ -63,14 +63,14 @@ private:
     /// @brief Load the global info from the GPS and IMU
     /// @param gps_rpy_positions_file The file with the GPS and IMU positions
     /// @return A vector with the latitude, longitude, altitude and yaw
-    std::vector<std::pair<Eigen::Vector3d, float>> loadGlobalInfo(const std::string &gps_rpy_positions_file);
+    std::vector<Eigen::Vector3d> loadGlobalInfo(const std::string &gps_rpy_positions_file);
 
     /// @brief Compute the transformation from the global to the map frame
-    /// @param latlonalt The latitude, longitude and altitude vector in global frame
-    /// @param compass_yaw The yaw angles from the compass
+    /// @param gps_points The latitude, longitude and altitude vector in global frame
+    /// @param odom_points The odom points in the map frame
     /// @return The transformation matrix from the global to the map frame
-    Eigen::Matrix4d computeMapTGlobal(const std::vector<Eigen::Vector3d> &latlonalt,
-                                      const std::vector<float> &compass_yaw) const;
+    Eigen::Matrix4d computeMapTGlobal(const std::vector<Eigen::Vector3d> &gps_points,
+                                      const std::vector<Eigen::Vector3d> &odom_points);
 
     /// @brief Load the map clouds, save them to disk and return the merged cloud
     /// @param voxel_size The voxel size to downsample the merged cloud
@@ -79,10 +79,10 @@ private:
 
     /// @brief Filter the bad readings from the odometry and global info vectors
     /// @param odom_positions The odometry positions
-    /// @param latlonalt_yaw The latitude, longitude, altitude and yaw vectors
+    /// @param latlonalt The latitude, longitude, altitude and yaw vectors
     /// @return True if the filtering was successful
     bool filterBadReadings(std::vector<Eigen::Vector3d> &odom_positions,
-                           std::vector<std::pair<Eigen::Vector3d, float>> &latlonalt_yaw) const;
+                           std::vector<Eigen::Vector3d> &latlonalt) const;
 
     /// @brief Data folder where the map data is stored
     std::string map_path_;
