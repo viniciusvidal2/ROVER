@@ -42,6 +42,13 @@ class MqttHandler:
         self.flag_gps = 0
         self.flag_lantern = -1
         self.flag_bms = 0
+        self.flag_mapping = -1
+        self.flag_bag_record = -1
+        self.flag_copy_data_usb = 0
+        self.flag_device_space = 0
+        self.flag_maps_done = 0
+        self.flag_mapping_status = 0
+        self.flag_rosbag_status = 0
 
         self.init_mqtt(broker, port, topic)
 
@@ -130,6 +137,13 @@ class MqttHandler:
         self.flag_gps = msg.get("gps", 0)
         self.flag_lantern = msg.get("lantern", -1)
         self.flag_bms = msg.get("bms", 0)
+        self.flag_mapping = msg.get("mapping", -1)
+        self.flag_bag_record = msg.get("bag_record", -1)
+        self.flag_copy_data_usb = msg.get("copy_data_usb", 0)
+        self.flag_device_space = msg.get("device_space", 0)
+        self.flag_maps_done = msg.get("maps_done", 0)
+        self.flag_mapping_status = msg.get("mapping_status", 0)
+        self.flag_rosbag_status = msg.get("rosbag_status", 0)
 
     def subscription_escolha(self, msg) -> None:
         """
@@ -230,7 +244,7 @@ class MqttHandler:
             self.client.publish(f"{self.topic}/escolha", json.dumps(message))
         except Exception as e:
             print(f"Publish GPS failed {e}")
-            
+
     def publish_bms(self, bms) -> None:
         """
         Publish Daly BMS all data to MQTT broker.
@@ -242,6 +256,19 @@ class MqttHandler:
             self.client.publish(f"{self.topic}/bms", json.dumps(bms))
         except Exception as e:
             print(f"Publish BMS failed {e}")
+            
+    def publish_general(self, topic, data) -> None:
+        """
+        Publish general data to MQTT broker.
+
+        Args:
+            topic (str): MQTT topic to publish data
+            data (dict): Data to be published
+        """
+        try:
+            self.client.publish(f"{self.topic}/{topic}", json.dumps(data))
+        except Exception as e:
+            print(f"Publish General {topic} failed {e}")
 
     # endregion
 

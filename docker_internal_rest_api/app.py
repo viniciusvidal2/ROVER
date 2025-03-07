@@ -13,6 +13,7 @@ import requests
 import os
 import shutil
 import re
+import json
 
 ############################################################################
 # region Declarations and Definitions
@@ -406,26 +407,62 @@ def publishers() -> None:
     while True:
         try:
             current_time = time()
-
+            
             if current_time - last_telemetry >= TELEMETRY_INTERVAL:
                 publish_telemetry()
                 last_telemetry = current_time
-
+            
             if global_mqtt.flag_gps:
                 global_mqtt.publish_gps(
                     global_gps_coordinates, global_compass_heading)
                 global_mqtt.flag_gps = 0
-
+            
             if global_mqtt.flag_lantern != -1:
                 lantern_data = {"lantern": global_mqtt.flag_lantern}
                 _ = requests.post(
                     f"{endpoint_gpios}/lantern/post", json=lantern_data)
                 global_mqtt.flag_lantern = -1
-
+            
             if global_mqtt.flag_bms:
                 bms = requests.get(f"{endpoint_gpios}/bms/get").json()
                 global_mqtt.publish_bms(bms)
                 global_mqtt.flag_bms = 0
+            
+            if global_mqtt.flag_mapping == 1:
+                start_mapping()
+                global_mqtt.flag_mapping = -1
+            
+            if global_mqtt.flag_mapping == 0:
+                stop_mapping()
+                global_mqtt.flag_mapping = -1
+            
+            if global_mqtt.flag_bag_record == 1:
+                start_bag_record()
+                global_mqtt.flag_bag_record = -1
+            
+            if global_mqtt.flag_bag_record == 0:
+                stop_bag_record()
+                global_mqtt.flag_bag_record = -1
+            
+            if global_mqtt.flag_copy_data_usb == 1:
+                copy_data_usb()
+                global_mqtt.flag_copy_data_usb = 0
+            
+            if global_mqtt.flag_device_space == 1:
+                global_mqtt.publish_general("device_space", get_device_space())
+                global_mqtt.flag_device_space = 0
+            
+            if global_mqtt.flag_maps_done == 1:
+                global_mqtt.publish_general("maps_done", get_maps_done())
+                global_mqtt.flag_maps_done = 0
+            
+            if global_mqtt.flag_mapping_status == 1:
+                global_mqtt.publish_general("mapping_status", get_mapping_status())
+                global_mqtt.flag_mapping_status = 0
+            
+            if global_mqtt.flag_rosbag_status == 1:
+                global_mqtt.publish_general("rosbag_status", get_rosbag_status())
+                global_mqtt.flag_rosbag_status = 0
 
             sleep(0.01)
         except Exception as e:
