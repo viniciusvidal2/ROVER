@@ -6,7 +6,6 @@ import cv2
 import msgpack
 import utm
 import matplotlib.cm as cm
-import matplotlib.colors as mcolors
 
 
 class MapManager:
@@ -66,7 +65,7 @@ class MapManager:
             if gps[2] < 0:
                 continue
             utm_e, utm_n, _, _ = utm.from_latlon(gps[0], gps[1])
-            gps_utm = np.array([utm_e, utm_n, gps[2]])
+            gps_utm = np.array([utm_e, utm_n, gps[2]], dtype=np.float64)
             if len(valid_readings) == 0:
                 valid_readings.append({"gps": gps_utm, "odom": odom})
                 continue
@@ -240,8 +239,8 @@ class MapManager:
 
         # Save the map point cloud
         if (len(np.asarray(map_ptc.points)) > 0):
-            ptc_path = os.path.join(self.map_folder, self.map_name + ".pcd")
-            o3d.io.write_point_cloud(ptc_path, map_ptc, write_ascii=False)
+            ptc_path = os.path.join(self.map_folder, self.map_name + ".ply")
+            o3d.io.write_point_cloud(ptc_path, map_ptc, write_ascii=False, compressed=False)
 
         # Save the JSON file with coordinates
         if len(map_coords) > 0:
@@ -293,19 +292,19 @@ class MapManager:
         Returns:
             np.ndarray: homogeneous transformation matrix
         """
-        pts_gps = np.array([data["gps"] for data in valid_readings])
-        pts_map = np.array([data["odom"] for data in valid_readings])
+        pts_gps = np.array([data["gps"] for data in valid_readings], dtype=np.float64)
+        pts_map = np.array([data["odom"] for data in valid_readings], dtype=np.float64)
 
         # Center the points
-        centroid_map = np.mean(pts_map, axis=0)
-        centroid_gps = np.mean(pts_gps, axis=0)
+        centroid_map = np.mean(pts_map, axis=0, dtype=np.float64)
+        centroid_gps = np.mean(pts_gps, axis=0, dtype=np.float64)
         map_centered = pts_map - centroid_map
         gps_centered = pts_gps - centroid_gps
 
         # Compute optimal rotation
-        H = np.dot(map_centered.T, gps_centered)
+        H = np.dot(map_centered.T, gps_centered).astype(np.float64)
         U, _, Vt = np.linalg.svd(H)
-        world_R_map = np.dot(Vt.T, U.T)
+        world_R_map = np.dot(Vt.T, U.T).astype(np.float64)
 
         # Ensure a right-handed coordinate system
         if np.linalg.det(world_R_map) < 0:
@@ -313,10 +312,10 @@ class MapManager:
             world_R_map = np.dot(Vt.T, U.T)
 
         # Compute optimal translation
-        world_t_map = centroid_gps - np.dot(world_R_map, centroid_map)
+        world_t_map = (centroid_gps - np.dot(world_R_map, centroid_map)).astype(np.float64)
 
         # Generate the transformation matrix and return
-        world_T_map = np.eye(4)
+        world_T_map = np.eye(4, dtype=np.float64)
         world_T_map[:3, :3] = world_R_map
         world_T_map[:3, 3] = world_t_map
         return world_T_map

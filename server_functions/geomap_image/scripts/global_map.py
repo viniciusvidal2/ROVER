@@ -2,7 +2,27 @@ import os
 import numpy as np
 import open3d as o3d
 from map_manager import MapManager
-from copy import deepcopy
+
+
+def transform_point_cloud(ptc: o3d.geometry.PointCloud, T: np.ndarray) -> o3d.geometry.PointCloud:
+    """Transforms a point cloud with a given transformation matrix
+
+    Args:
+        ptc (o3d.geometry.PointCloud): the point cloud to be transformed
+        T (np.ndarray): the transformation matrix
+
+    Returns:
+        o3d.geometry.PointCloud: the transformed point cloud
+    """
+    original_points = np.asarray(ptc.points).astype(np.float64)
+    # Apply rotation
+    rotated_points = np.dot(T[:3, :3], original_points.T).T
+    # Apply translation
+    translated_points = rotated_points + T[:3, 3]
+    # Create the new point cloud
+    transformed_ptc = o3d.geometry.PointCloud()
+    transformed_ptc.points = o3d.utility.Vector3dVector(translated_points)
+    return transformed_ptc
 
 
 def main(maps_folder: "str") -> None:
@@ -64,7 +84,7 @@ def main(maps_folder: "str") -> None:
             world_T_map_ref = world_T_map
 
         # Transform the point cloud to the world frame
-        map_ptc_world_frame = deepcopy(map_ptc).transform(world_T_map)
+        map_ptc_world_frame = transform_point_cloud(map_ptc, world_T_map)
 
         # Add the point cloud to the global map
         global_map_point_cloud += map_ptc_world_frame
@@ -78,7 +98,7 @@ def main(maps_folder: "str") -> None:
 
     print("Saving global map ...")
     global_map_manager.save_map(map_bev=global_map_bev, map_ptc=global_map_point_cloud,
-                               map_coords=global_map_coords_json, world_T_map=world_T_map_ref)
+                                map_coords=global_map_coords_json, world_T_map=world_T_map_ref)
     print("Global map created and saved!")
 
 
